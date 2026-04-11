@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Theme, PartyRole } from '../../types';
+import { Theme } from '../../types';
 import { X, Plus, Trash2, Edit2, Check } from 'lucide-react';
 
 interface ThemeEditorModalProps {
@@ -13,10 +13,10 @@ interface ThemeEditorModalProps {
 
 const audienceOptions: { label: string; value: Theme['audience'] }[] = [
   { label: '通用', value: 'common' },
-  { label: '绅士专用', value: 'husband' },
-  { label: '淑女专用', value: 'wife' },
-  { label: '骑士专用', value: 'bull' },
-  { label: '精灵专用', value: 'female_partner' }
+  { label: '绅士专用', value: 'GENTLEMAN' },
+  { label: '淑女专用', value: 'LADY' },
+  { label: '骑士专用', value: 'KNIGHT' },
+  { label: '精灵专用', value: 'ELF' }
 ];
 
 export function ThemeEditorModal({

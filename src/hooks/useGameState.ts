@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GameState, Player, TaskEventData, Theme, PartyRole } from '../types';
 import { loadFromStorage, saveToStorage } from '../utils/localStorage';
-import { generateBoardMap, calculateNewPosition, canStart, getPlayerPath } from '../utils/gameLogic';
+import { generateBoardMap, canStart, getPlayerPath } from '../utils/gameLogic';
 import { DEFAULT_THEMES } from '../data/defaultThemes';
 
 const STORAGE_KEY = 'party-ludo-game-state';
@@ -130,16 +130,16 @@ export function useGameState() {
   const updatePlayersConfig = useCallback((players: Omit<Player, 'step' | 'themeId'>[]) => {
     setState(prev => ({
       ...prev,
-      players: players.map((p, idx) => {
+      players: players.map((p) => {
         const existing = prev.players.find(oldP => oldP.id === p.id);
         const playerTheme = existing?.themeId;
         // Verify if theme is still compatible with new role
         const themeDef = playerTheme ? prev.themes.find(t => t.id === playerTheme) : null;
-        const validTheme = themeDef && isThemeAllowedForRole(themeDef, p.role) ? playerTheme : null;
+        const validTheme = themeDef && isThemeAllowedForRole(themeDef, p.role) ? (playerTheme ?? null) : null;
         
         return {
           ...p,
-          step: 0,
+          step: -1,
           themeId: validTheme
         };
       })
@@ -220,10 +220,6 @@ export function useGameState() {
     const playerPath = getPlayerPath(activePlayer.role);
     
     if (landingStep >= playerPath.length - 1) return 'win';
-
-    const opponents = state.players.filter(p => p.id !== activePlayer.id);
-    const opponent = opponents[Math.floor(Math.random() * opponents.length)];
-
     let overlappedOpponent = state.players.find(p => p.id !== activePlayer.id && p.step === landingStep);
     
     if (landingStep !== -1 && overlappedOpponent) {

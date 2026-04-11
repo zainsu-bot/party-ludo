@@ -8,10 +8,10 @@ interface ThemesViewProps {
 
 const audienceLabel: Record<Theme['audience'], string> = {
   common: '通用',
-  husband: '绅士专属',
-  wife: '淑女专属',
-  bull: '骑士专属',
-  female_partner: '精灵专属'
+  GENTLEMAN: '绅士专属',
+  LADY: '淑女专属',
+  KNIGHT: '骑士专属',
+  ELF: '精灵专属'
 };
 
 export function ThemesView({ themes, onCreateTheme, onEditTheme }: ThemesViewProps) {

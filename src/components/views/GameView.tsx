@@ -1,14 +1,12 @@
 import { useState, useCallback } from 'react';
-import { Player, PathCoord, TileType, TaskEventData } from '../../types';
+import { Player, TaskEventData } from '../../types';
 import { GameBoard } from '../GameBoard';
 import { Dice } from '../Dice';
-import { calculateNewPosition, rollDice, TILES_COUNT } from '../../utils/gameLogic';
+import { rollDice } from '../../utils/gameLogic';
 import { ArrowLeft, Flag } from 'lucide-react';
 
 interface GameViewProps {
   players: Player[];
-  boardMap: TileType[];
-  pathCoords: PathCoord[];
   currentTurn: number;
   isRolling: boolean;
   onMove: (steps: number) => void;
@@ -22,8 +20,6 @@ interface GameViewProps {
 
 export function GameView({
   players,
-  boardMap,
-  pathCoords,
   currentTurn,
   isRolling,
   onMove,
@@ -53,38 +49,39 @@ export function GameView({
 
   const handleRollComplete = useCallback(() => {
     if (diceResult) {
-      const landingStep = calculateNewPosition(players[currentTurn].step, diceResult);
-      setIsMoving(true);
-
-      const moveDelayMs = 220;
-      let movedSteps = 0;
-
-      const stepOnce = () => {
-        onMove(1);
-        movedSteps += 1;
-
-        if (movedSteps < diceResult) {
-          setTimeout(stepOnce, moveDelayMs);
-          return;
-        }
-
+      const activePlayer = players[currentTurn];
+      const isHome = activePlayer.step === -1;
+      
+      // If player is at home and can't start, just end turn
+      if (isHome && ![2, 4, 6].includes(diceResult)) {
+        onMove(diceResult); // movePlayer handles the logic internally
         setTimeout(() => {
-          const tileCheck = onCheckTile(landingStep);
-
-          if (tileCheck === 'win') {
-            onWin(players[currentTurn].id);
-          } else if (tileCheck) {
-            onTaskTrigger(tileCheck);
-          } else {
-            onEndTurn();
-          }
-
+          onEndTurn();
           setDiceResult(null);
           setIsMoving(false);
-        }, moveDelayMs);
-      };
+        }, 500);
+        return;
+      }
+      
+      const landingStep = isHome ? 0 : activePlayer.step + diceResult;
+      
+      setIsMoving(true);
+      onMove(diceResult);
 
-      setTimeout(stepOnce, moveDelayMs);
+      setTimeout(() => {
+        const tileCheck = onCheckTile(landingStep);
+
+        if (tileCheck === 'win') {
+          onWin(players[currentTurn].id);
+        } else if (tileCheck) {
+          onTaskTrigger(tileCheck);
+        } else {
+          onEndTurn();
+        }
+
+        setDiceResult(null);
+        setIsMoving(false);
+      }, 600);
     }
   }, [diceResult, players, currentTurn, onMove, onCheckTile, onWin, onTaskTrigger, onEndTurn]);
 
@@ -167,7 +164,7 @@ export function GameView({
                 <Flag size={16} /> 派对棋盘
              </div>
              <div className="w-full flex items-center justify-center">
-               <GameBoard boardMap={boardMap} pathCoords={pathCoords} players={players} currentTurn={currentTurn} />
+               <GameBoard players={players} currentTurn={currentTurn} />
              </div>
           </div>
 

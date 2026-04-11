@@ -205,8 +205,6 @@ function App() {
       {state.view === 'game' && (
         <GameView
           players={state.players}
-          boardMap={state.boardMap}
-          pathCoords={state.pathCoords}
           currentTurn={state.turn}
           isRolling={state.isRolling}
           onMove={movePlayer}

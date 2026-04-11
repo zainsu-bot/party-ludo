@@ -11,10 +11,10 @@ interface HomeViewProps {
 }
 
 const roleLabel: Record<PartyRole, string> = {
-  husband: '绅士 (Gentleman)',
-  wife: '淑女 (Lady)',
-  bull: '骑士 (Knight)',
-  female_partner: '精灵 (Elf)'
+  GENTLEMAN: '绅士 (Gentleman)',
+  LADY: '淑女 (Lady)',
+  KNIGHT: '骑士 (Knight)',
+  ELF: '精灵 (Elf)'
 };
 
 export function HomeView({ players, themes, onSelectTheme, onStartGame, onUpdatePlayersConfig }: HomeViewProps) {
@@ -30,9 +30,10 @@ export function HomeView({ players, themes, onSelectTheme, onStartGame, onUpdate
           id: newCount - 1,
           name: `玩家${newCount}`,
           color: newCount === 4 ? '#E5A50A' : '#32D74B',
-          role: newCount === 4 ? 'female_partner' : 'bull',
-          step: 0,
-          themeId: null
+          role: newCount === 4 ? 'ELF' : 'KNIGHT',
+          step: -1,
+          themeId: null,
+          isFinished: false
         });
       } else {
         newPlayers.pop();
@@ -77,7 +78,7 @@ export function HomeView({ players, themes, onSelectTheme, onStartGame, onUpdate
         </div>
 
         <div className="space-y-4">
-          {players.slice(0, playerCount).map((player, idx) => {
+          {players.slice(0, playerCount).map((player) => {
             const theme = themes.find(t => t.id === player.themeId);
             return (
               <div key={player.id} className="bg-black/30 rounded-xl p-3 border border-white/5 border-l-4" style={{borderLeftColor: player.color}}>

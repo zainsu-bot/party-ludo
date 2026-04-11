@@ -9,10 +9,10 @@ interface ThemeCreateModalProps {
 
 const audienceOptions: { label: string; value: Theme['audience'] }[] = [
   { label: '通用', value: 'common' },
-  { label: '绅士', value: 'husband' },
-  { label: '淑女', value: 'wife' },
-  { label: '骑士', value: 'bull' },
-  { label: '精灵', value: 'female_partner' }
+  { label: '绅士', value: 'GENTLEMAN' },
+  { label: '淑女', value: 'LADY' },
+  { label: '骑士', value: 'KNIGHT' },
+  { label: '精灵', value: 'ELF' }
 ];
 
 export function ThemeCreateModal({ isOpen, onClose, onCreate }: ThemeCreateModalProps) {
