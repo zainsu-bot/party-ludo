@@ -84,17 +84,29 @@ function App() {
   };
 
   const handleBackFromGame = () => {
-    if (confirm('离开游戏？进度不会保存')) {
-      resetGame();
-      switchView('home');
-    }
+    resetGame();
+    switchView('home');
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex justify-center bg-black">
-      <div className="fixed inset-0 z-0">
-        <div className="w-full h-full bg-gradient-to-br from-gray-900 via-black to-gray-900 opacity-60" />
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+    <div className="h-screen w-screen overflow-hidden flex justify-center bg-[#1a0b16]">
+      <div className="fixed inset-0 z-0 scale-110">
+        {/* 高级 4-象限 Mesh Gradient 艺术背景 */}
+        <div className="absolute inset-0 bg-[#0a050a]" />
+        
+        {/* 左上: 绅士蓝 */}
+        <div className="absolute top-[-15%] left-[-15%] w-[60%] h-[60%] rounded-full bg-blue-900/30 blur-[120px] animate-pulse" style={{animationDuration: '8s'}} />
+        
+        {/* 右上: 淑女红 */}
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-rose-900/25 blur-[100px] animate-pulse" style={{animationDuration: '10s'}} />
+        
+        {/* 左下: 骑士绿 */}
+        <div className="absolute bottom-[-15%] left-[-10%] w-[55%] h-[55%] rounded-full bg-green-900/20 blur-[110px] animate-pulse" style={{animationDuration: '12s'}} />
+        
+        {/* 右下: 辅助色 */}
+        <div className="absolute bottom-[-10%] right-[-15%] w-[50%] h-[50%] rounded-full bg-amber-900/20 blur-[90px] animate-pulse" style={{animationDuration: '9s'}} />
+        
+        <div className="absolute inset-0 bg-black/20" />
       </div>
 
       <div className="relative z-10 w-full max-w-[430px] h-full flex flex-col bg-black/20">
@@ -103,7 +115,7 @@ function App() {
             <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
               Party Game
             </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">派对飞行棋</h1>
+            <h1 className="text-3xl font-bold text-rose-100 tracking-tight drop-shadow-sm">派对飞行棋</h1>
           </div>
           <div className="flex flex-col items-end gap-2 mt-1">
             <a
@@ -126,7 +138,7 @@ function App() {
 
         <main className="flex-1 relative overflow-hidden">
           <div
-            className={`absolute inset-0 flex flex-col px-6 pt-10 pb-10 transition-all duration-500 ease-in-out ${state.view === 'home'
+            className={`absolute inset-0 flex flex-col px-6 pt-10 pb-32 transition-all duration-500 ease-in-out ${state.view === 'home'
                 ? 'translate-x-0 opacity-100'
                 : 'opacity-0 pointer-events-none -translate-x-full'
               }`}
@@ -141,7 +153,7 @@ function App() {
           </div>
 
           <div
-            className={`absolute inset-0 px-6 pt-4 transition-all duration-500 ease-in-out ${state.view === 'themes'
+            className={`absolute inset-0 px-6 pt-4 transition-all duration-500 ease-in-out pb-32 overflow-y-auto no-scrollbar ${state.view === 'themes'
                 ? 'translate-x-0 opacity-100'
                 : 'opacity-0 pointer-events-none translate-x-full'
               }`}
@@ -170,10 +182,11 @@ function App() {
         taskData={taskData}
         onAccept={handleTaskAccept}
         onReject={handleTaskReject}
+        players={state.players}
       />
 
       <WinModal
-        isOpen={!!winnerId}
+        isOpen={winnerId !== null}
         winnerName={winnerId !== null ? state.players[winnerId].name : ''}
         onRestart={() => {
           resetGame();
@@ -214,6 +227,7 @@ function App() {
           onWin={handleWin}
           onTaskTrigger={handleTaskTrigger}
           onBack={handleBackFromGame}
+          boardTasks={state.boardTasks}
         />
       )}
     </div>

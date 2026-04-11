@@ -2,8 +2,8 @@ import { useState, useCallback } from 'react';
 import { Player, TaskEventData } from '../../types';
 import { GameBoard } from '../GameBoard';
 import { Dice } from '../Dice';
-import { rollDice } from '../../utils/gameLogic';
-import { ArrowLeft, Flag } from 'lucide-react';
+import { rollDice, getPlayerPath } from '../../utils/gameLogic';
+import { ArrowLeft } from 'lucide-react';
 
 interface GameViewProps {
   players: Player[];
@@ -16,6 +16,7 @@ interface GameViewProps {
   onWin: (winnerId: number) => void;
   onTaskTrigger: (data: TaskEventData) => void;
   onBack: () => void;
+  boardTasks?: string[];
 }
 
 export function GameView({
@@ -28,7 +29,8 @@ export function GameView({
   onSetRolling,
   onWin,
   onTaskTrigger,
-  onBack
+  onBack,
+  boardTasks,
 }: GameViewProps) {
   const [diceResult, setDiceResult] = useState<number | null>(null);
   const [isMoving, setIsMoving] = useState(false);
@@ -50,29 +52,18 @@ export function GameView({
   const handleRollComplete = useCallback(() => {
     if (diceResult) {
       const activePlayer = players[currentTurn];
-      const isHome = activePlayer.step === -1;
-      
-      // If player is at home and can't start, just end turn
-      if (isHome && ![2, 4, 6].includes(diceResult)) {
-        onMove(diceResult); // movePlayer handles the logic internally
-        setTimeout(() => {
-          onEndTurn();
-          setDiceResult(null);
-          setIsMoving(false);
-        }, 500);
-        return;
-      }
-      
-      const landingStep = isHome ? 0 : activePlayer.step + diceResult;
-      
+      const path = getPlayerPath(activePlayer.id);
+      const pathLen = path.length;
+
+      const finalStep = Math.min(activePlayer.step + diceResult, pathLen - 1);
       setIsMoving(true);
       onMove(diceResult);
 
       setTimeout(() => {
-        const tileCheck = onCheckTile(landingStep);
+        const tileCheck = onCheckTile(finalStep);
 
         if (tileCheck === 'win') {
-          onWin(players[currentTurn].id);
+          onWin(activePlayer.id);
         } else if (tileCheck) {
           onTaskTrigger(tileCheck);
         } else {
@@ -86,90 +77,85 @@ export function GameView({
   }, [diceResult, players, currentTurn, onMove, onCheckTile, onWin, onTaskTrigger, onEndTurn]);
 
   const activePlayer = players[currentTurn];
-  const turnNumber = Math.floor(Math.max(...players.map(p => p.step)) / players.length) + 1;
+  const pathLen = getPlayerPath(activePlayer.id).length;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#0F172A] flex justify-center items-center overflow-hidden font-sans">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-900/20 via-[#0F172A] to-[#0F172A]"></div>
+    <div className="fixed inset-0 z-50 bg-[#1e0a13] flex justify-center items-center overflow-hidden font-sans">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#3e1625_0%,_#1e0a13_100%)] opacity-80"></div>
       
-      {/* Back button */}
-      <button
-        onClick={onBack}
-        className="absolute top-6 left-6 z-50 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition backdrop-blur text-white shadow-xl"
-      >
-        <ArrowLeft size={20} />
-      </button>
-
-      <div className="relative z-10 w-full max-w-6xl h-full p-4 lg:p-8 flex flex-col lg:flex-row gap-6">
+      <div className="relative z-10 w-full max-w-4xl h-full p-4 flex flex-col items-center gap-4 overflow-y-auto no-scrollbar pt-6 lg:pt-10">
         
-        {/* Left Side: Dice Panel */}
-        <div className="w-full lg:w-1/3 flex flex-col gap-6">
-          <div className="bg-white rounded-3xl p-8 flex flex-col items-center justify-center shadow-2xl h-[300px] lg:h-[500px] border border-gray-100">
-            <h3 className="text-xl font-bold text-slate-800 mb-8 flex items-center gap-2">
-              <span className="text-2xl">🎲</span> 投掷骰子
-            </h3>
+        {/* Compact Header Control Bar */}
+        <div className="w-full max-w-[800px] bg-rose-950/40 backdrop-blur-2xl rounded-3xl p-3 border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.3)]">
+          <div className="flex items-center justify-between gap-4">
             
-            <div className="flex-1 w-full flex items-center justify-center cursor-pointer" onClick={handleRoll}>
-              <Dice isRolling={isRolling} result={diceResult} onRollComplete={handleRollComplete} />
+            {/* Back & Player Info */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onBack}
+                className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition text-rose-100 mr-1 cursor-pointer"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              
+              <div 
+                className="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg shadow-lg font-black" 
+                style={{backgroundColor: activePlayer.color, boxShadow: `0 0 15px ${activePlayer.color}44`}}
+              >
+                {activePlayer.name.substring(0, 1)}
+              </div>
+              <div className="hidden sm:block">
+                <div className="text-rose-100 font-black text-sm">{activePlayer.name}</div>
+                <div className="text-[10px] text-rose-200/40 font-bold uppercase tracking-wider">
+                  进度 {activePlayer.step} / {pathLen - 1}
+                </div>
+              </div>
             </div>
 
-            <div className="mt-8 text-center text-sm font-medium text-slate-500 animate-pulse">
-              点击上方骰子
+            {/* Status Text (Middle) */}
+            <div className="flex-1 text-center">
+              <span className="text-xs font-bold text-rose-200/60 uppercase tracking-[0.2em] animate-pulse">
+                {isRolling ? '掷骰中...' : (isMoving ? '移动中...' : '等待掷骰')}
+              </span>
+            </div>
+
+            {/* Mini Dice Container (Right) */}
+            <div className="flex items-center gap-4">
+              <div 
+                className={`cursor-pointer transform scale-[0.55] origin-center -my-6 transition-all active:scale-[0.5] ${isRolling || isMoving ? 'pointer-events-none' : ''}`}
+                onClick={handleRoll}
+              >
+                <Dice isRolling={isRolling} result={diceResult} onRollComplete={handleRollComplete} />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Right Side: Status and Board */}
-        <div className="w-full lg:w-2/3 flex flex-col gap-6">
-          
-          {/* Status Panel */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-xl">
-            <div className="flex flex-wrap items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-white">
-                <div className="bg-blue-500 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">i</div>
-                <span className="font-semibold text-sm">回合: <span className="bg-blue-500/20 text-blue-300 px-2 rounded-full">{turnNumber}</span></span>
-                <span className="ml-4 font-semibold text-sm text-slate-300">状态：等待玩家操作</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 bg-white/5 p-4 rounded-2xl border border-white/10 mb-6">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold" style={{backgroundColor: activePlayer.color}}>
-                ✈️
-              </div>
-              <div>
-                <div className="text-white font-bold text-lg">{activePlayer.name}</div>
-                <div className="text-sm text-slate-400">目前在：第 {activePlayer.step} 格</div>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-slate-400 text-sm font-bold mb-3">当局派对玩家</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {players.map((p, i) => (
-                  <div key={p.id} className={`p-3 rounded-xl border ${i === currentTurn ? 'border-blue-400/50 bg-blue-500/10' : 'border-white/5 bg-white/5'}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-3 h-3 rounded-full" style={{backgroundColor: p.color}}></div>
-                      <span className="text-white font-semibold text-sm truncate">{p.name}</span>
-                    </div>
-                    <div className="text-xs text-slate-400">位置: 第 {p.step} 格</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Game Board container */}
-          <div className="bg-gradient-to-br from-indigo-500/20 to-purple-600/20 backdrop-blur-md rounded-3xl p-4 lg:p-8 flex-1 flex flex-col justify-center border border-white/10 shadow-2xl relative">
-             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-2 rounded-full font-bold shadow-lg shadow-blue-500/30 flex items-center gap-2">
-                <Flag size={16} /> 派对棋盘
-             </div>
-             <div className="w-full flex items-center justify-center">
-               <GameBoard players={players} currentTurn={currentTurn} />
-             </div>
-          </div>
-
+        {/* Main Game Board */}
+        <div className="w-full max-w-[800px] flex-1 flex flex-col justify-center items-center py-4">
+          <GameBoard players={players} currentTurn={currentTurn} boardTasks={boardTasks} />
         </div>
+
       </div>
+
+      {/* 调试工具：仅用于最后环节验证 - 如需使用请取消下方注释
+      <div className="fixed bottom-20 right-4 flex flex-col gap-2 z-[100] opacity-50 hover:opacity-100 transition-opacity pointer-events-auto">
+        <div className="text-[10px] text-white/40 text-right uppercase font-bold">调试工具</div>
+        <button 
+          onClick={() => onMove(40)} 
+          className="bg-black/60 border border-white/10 text-white p-2 rounded-lg text-xs"
+        >⏩ 快进 40 步</button>
+        <button 
+          onClick={() => {
+            const path = getPlayerPath(players[currentTurn].id);
+            const targetStep = path.length - 2;
+            const diff = targetStep - players[currentTurn].step;
+            if (diff > 0) onMove(diff);
+          }} 
+          className="bg-rose-900/60 border border-rose-400/30 text-white p-2 rounded-lg text-xs"
+        >👑 夺冠前夕</button>
+      </div>
+      */}
     </div>
   );
 }

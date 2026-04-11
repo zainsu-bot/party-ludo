@@ -15,8 +15,7 @@ const audienceOptions: { label: string; value: Theme['audience'] }[] = [
   { label: '通用', value: 'common' },
   { label: '绅士专用', value: 'GENTLEMAN' },
   { label: '淑女专用', value: 'LADY' },
-  { label: '骑士专用', value: 'KNIGHT' },
-  { label: '精灵专用', value: 'ELF' }
+  { label: '骑士专用', value: 'KNIGHT' }
 ];
 
 export function ThemeEditorModal({
@@ -56,11 +55,11 @@ export function ThemeEditorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="flex-1 overflow-hidden flex flex-col bg-[#1C1C1E] mt-12 rounded-t-3xl shadow-2xl relative animate-slide-up">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-rose-950/60 backdrop-blur-sm animate-fade-in">
+      <div className="flex-1 overflow-hidden flex flex-col bg-[#2d1b33]/80 backdrop-blur-2xl mt-12 rounded-t-3xl shadow-2xl relative animate-slide-up border-t border-white/10">
         {/* Header */}
         <header className="px-6 py-5 border-b border-white/10 flex items-center justify-between shrink-0">
-          <h2 className="text-xl font-bold text-white tracking-tight">编辑主题</h2>
+          <h2 className="text-xl font-bold text-rose-100 tracking-tight">编辑主题</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center ios-btn border border-white/5 text-gray-400"
@@ -116,7 +115,7 @@ export function ThemeEditorModal({
                 <div className="flex justify-end pt-2">
                   <button
                     onClick={handleSaveMeta}
-                    className="px-4 py-1.5 rounded-full bg-[#0A84FF] text-white text-sm font-semibold ios-btn flex items-center gap-1"
+                    className="px-4 py-1.5 rounded-full bg-rose-500 text-white text-sm font-black active:scale-95 flex items-center gap-1 shadow-lg shadow-rose-900/40"
                   >
                     <Check size={16} />保存
                   </button>
@@ -133,10 +132,10 @@ export function ThemeEditorModal({
                 <button
                   key={opt.value}
                   onClick={() => onSaveMeta(theme.id, { audience: opt.value })}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium border ios-btn transition-colors ${
+                  className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all ${
                     theme.audience === opt.value
-                      ? 'bg-teal-500/20 text-teal-400 border-teal-500/50'
-                      : 'bg-black/40 text-gray-400 border-white/5 hover:bg-white/10'
+                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 shadow-[0_0_10px_rgba(251,113,133,0.2)]'
+                      : 'bg-white/5 text-rose-200/40 border-white/5 hover:bg-white/10'
                   }`}
                 >
                   {opt.label}
@@ -170,7 +169,7 @@ export function ThemeEditorModal({
               <button
                 onClick={handleAddTask}
                 disabled={!newTaskText.trim()}
-                className="w-12 h-12 rounded-xl bg-teal-500 text-white flex items-center justify-center disabled:opacity-50 ios-btn"
+                className="w-12 h-12 rounded-xl bg-rose-500 text-white flex items-center justify-center disabled:opacity-30 active:scale-95 shadow-lg shadow-rose-900/40"
               >
                 <Plus size={20} />
               </button>

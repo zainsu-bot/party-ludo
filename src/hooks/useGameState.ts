@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GameState, Player, TaskEventData, Theme, PartyRole } from '../types';
 import { loadFromStorage, saveToStorage } from '../utils/localStorage';
-import { generateBoardMap, canStart, getPlayerPath } from '../utils/gameLogic';
+import { generateBoardMap, SNAKE_PATH, PATHS_BY_ROLE, getPlayerPath } from '../utils/gameLogic';
 import { DEFAULT_THEMES } from '../data/defaultThemes';
 
 const STORAGE_KEY = 'party-ludo-game-state';
 
 export const initialPlayers: Player[] = [
-  { id: 0, name: '绅士', color: '#0A84FF', role: 'GENTLEMAN', step: -1, themeId: null, isFinished: false },
-  { id: 1, name: '淑女', color: '#FF375F', role: 'LADY', step: -1, themeId: null, isFinished: false }
+  { id: 0, name: '绅士', color: '#0A84FF', role: 'GENTLEMAN', step: 0, themeId: null, isFinished: false },
+  { id: 1, name: '淑女', color: '#FF375F', role: 'LADY', step: 0, themeId: null, isFinished: false }
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -27,14 +27,21 @@ function normalizePlayers(input: unknown): Player[] {
     const record = isRecord(p) ? p : {};
     const roleValue = record.role as PartyRole;
     const themeIdValue = record.themeId;
-    const defaultNames: Record<string, string> = { GENTLEMAN: '绅士', LADY: '淑女', KNIGHT: '骑士', ELF: '精灵' };
-    
+    const defaultNames: Record<string, string> = { GENTLEMAN: '绅士', LADY: '淑女', KNIGHT: '骑士' };
+
+    let name: string = typeof record.name === 'string' ? record.name : (defaultNames[roleValue as string] || `玩家${index + 1}`);
+
+    // Cleanup old role names
+    if (name === '精灵' || name === '精') {
+      name = defaultNames[roleValue as string] || `玩家${index + 1}`;
+    }
+
     return {
       id: typeof record.id === 'number' ? record.id : index,
-      name: typeof record.name === 'string' && !record.name.startsWith('玩家') && !['丈夫', '妻子', '公牛', '女伴'].includes(record.name) ? record.name : (defaultNames[roleValue as string] || `玩家${index + 1}`),
+      name: name,
       color: typeof record.color === 'string' ? record.color : '#FFFFFF',
-      role: ['GENTLEMAN', 'LADY', 'KNIGHT', 'ELF'].includes(roleValue) ? roleValue : 'GENTLEMAN',
-      step: typeof record.step === 'number' ? record.step : -1,
+      role: ['GENTLEMAN', 'LADY', 'KNIGHT'].includes(roleValue) ? roleValue : (roleValue === ('ELF' as any) ? 'LADY' : 'GENTLEMAN'),
+      step: typeof record.step === 'number' ? Math.max(0, record.step) : 0,
       themeId: typeof themeIdValue === 'string' || themeIdValue === null ? themeIdValue : null,
       isFinished: !!record.isFinished
     };
@@ -43,34 +50,36 @@ function normalizePlayers(input: unknown): Player[] {
 
 function normalizeThemes(input: unknown): Theme[] {
   const incoming = Array.isArray(input) ? input : [];
-  const source = incoming.length > 0 ? incoming : DEFAULT_THEMES;
+  const themesMap = new Map<string, Theme>();
 
-  return source
-    .map(t => {
-      const record = isRecord(t) ? t : {};
-      const tasksValue = record.tasks;
-      const tasks = Array.isArray(tasksValue)
-        ? tasksValue.map(x => (typeof x === 'string' ? x.trim() : '')).filter((x): x is string => x.length > 0)
-        : [];
+  // 1. 先加载代码中的默认主题 (确保代码更新能生效)
+  DEFAULT_THEMES.forEach(t => themesMap.set(t.id, t));
 
-      const audienceValue = record.audience;
+  // 2. 合并来自存储的主题 (主要是保留用户自定义的主题)
+  incoming.forEach(t => {
+    if (isRecord(t) && typeof t.id === 'string') {
+      const id = t.id;
+      // 如果 ID 不在默认主题中，说明是用户新建的主题，合并进来
+      if (!themesMap.has(id)) {
+        const tasksValue = t.tasks;
+        const tasks = Array.isArray(tasksValue)
+          ? tasksValue.map(x => (typeof x === 'string' ? x.trim() : '')).filter((x): x is string => x.length > 0)
+          : [];
 
-      return {
-        id: typeof record.id === 'string' ? record.id : `theme_${Date.now()}`,
-        name: typeof record.name === 'string' ? record.name : '未命名主题',
-        desc: typeof record.desc === 'string' ? record.desc : '',
-        audience:
-          ['common', 'GENTLEMAN', 'LADY', 'KNIGHT', 'ELF'].includes(audienceValue as string)
-            ? (audienceValue as Theme['audience'])
+        themesMap.set(id, {
+          id: id,
+          name: typeof t.name === 'string' ? t.name : '未命名主题',
+          desc: typeof t.desc === 'string' ? t.desc : '',
+          audience: ['common', 'GENTLEMAN', 'LADY', 'KNIGHT'].includes(t.audience as string)
+            ? (t.audience as Theme['audience'])
             : 'common',
-        tasks
-      } satisfies Theme;
-    })
-    .reduce<Theme[]>((acc, theme) => {
-      if (acc.some(t => t.id === theme.id)) return acc;
-      acc.push(theme);
-      return acc;
-    }, []);
+          tasks
+        });
+      }
+    }
+  });
+
+  return Array.from(themesMap.values());
 }
 
 function normalizeGameState(saved: unknown): GameState | null {
@@ -126,7 +135,33 @@ export function useGameState() {
     saveToStorage(STORAGE_KEY, state);
   }, [state]);
 
-  const switchView = useCallback((view: GameState['view']) => setState(prev => ({ ...prev, view })), []);
+  const extractShortTitle = (task: string): string => {
+    // Take first 4 characters or before first punctuation
+    const simple = task.replace(/[，。！？、]/g, '|').split('|')[0];
+    return simple.slice(0, 4);
+  };
+
+  const switchView = useCallback((view: GameState['view']) => {
+    setState(prev => {
+      const next: GameState = { ...prev, view };
+      // When starting a game, pre-generate board task titles
+      if (view === 'game') {
+        const pool: string[] = [];
+        prev.players.forEach(p => {
+          const theme = prev.themes.find(t => t.id === p.themeId);
+          if (theme) pool.push(...theme.tasks);
+        });
+
+        if (pool.length > 0) {
+          next.boardTasks = Array.from({ length: 169 }, () => {
+            const task = pool[Math.floor(Math.random() * pool.length)];
+            return extractShortTitle(task);
+          });
+        }
+      }
+      return next;
+    });
+  }, []);
 
   const updatePlayersConfig = useCallback((players: Omit<Player, 'step' | 'themeId'>[]) => {
     setState(prev => ({
@@ -137,10 +172,10 @@ export function useGameState() {
         // Verify if theme is still compatible with new role
         const themeDef = playerTheme ? prev.themes.find(t => t.id === playerTheme) : null;
         const validTheme = themeDef && isThemeAllowedForRole(themeDef, p.role) ? (playerTheme ?? null) : null;
-        
+
         return {
           ...p,
-          step: -1,
+          step: 0,
           themeId: validTheme
         };
       })
@@ -194,20 +229,28 @@ export function useGameState() {
   }, [state.players, state.themes]);
 
   const movePlayer = useCallback((steps: number) => {
+    let won = false;
     setState(prev => {
       const activePlayer = prev.players[prev.turn];
-      const isHome = activePlayer.step === -1;
-      
-      // 起飞逻辑
-      if (isHome) {
-        if (canStart(steps)) {
-          return { ...prev, players: prev.players.map(p => p.id === activePlayer.id ? { ...p, step: 0 } : p) };
-        }
-        return prev;
+      const path = getPlayerPath(activePlayer.id) || SNAKE_PATH;
+      const pathLen = path.length;
+
+      const remaining = (pathLen - 1) - activePlayer.step;
+
+      // 只要点数大于或等于剩余步数，就移动到终点并获胜
+      const actualSteps = Math.min(steps, remaining);
+      const finalStep = activePlayer.step + actualSteps;
+
+      if (finalStep === pathLen - 1) {
+        won = true;
       }
-      
-      return { ...prev, players: prev.players.map(p => p.id === activePlayer.id ? { ...p, step: activePlayer.step + steps } : p) };
+
+      return {
+        ...prev,
+        players: prev.players.map(p => p.id === activePlayer.id ? { ...p, step: finalStep, isFinished: finalStep === pathLen - 1 } : p)
+      };
     });
+    return won;
   }, []);
 
   const endTurn = useCallback(() => {
@@ -216,21 +259,39 @@ export function useGameState() {
 
   const setIsRolling = useCallback((rolling: boolean) => setState(prev => ({ ...prev, isRolling: rolling })), []);
 
-  const checkTile = useCallback((landingStep: number): TaskEventData | 'win' | null => {
+  const checkTile = useCallback((finalStep: number): TaskEventData | 'win' | null => {
     const activePlayer = state.players[state.turn];
-    const playerPath = getPlayerPath(activePlayer.role);
-    
-    if (landingStep >= playerPath.length - 1) return 'win';
-    let overlappedOpponent = state.players.find(p => p.id !== activePlayer.id && p.step === landingStep);
-    
-    if (landingStep !== -1 && overlappedOpponent) {
-      const theme = state.themes.find(t => t.id === activePlayer.themeId);
-      const task = theme?.tasks[Math.floor(Math.random() * theme.tasks.length)] || '';
-      return { type: 'collision', initiatorPlayerId: activePlayer.id, executorPlayerId: overlappedOpponent.id, title: '不期而遇', subtitle: `任务来自「${theme?.name || ''}」`, icon: 'handshake', color: 'text-yellow-400', task, taskSourceId: activePlayer.themeId || '' };
+    const path = getPlayerPath(activePlayer.id);
+    const pathLen = path.length;
+
+    // 1. 物理坐标胜利判定 (最高优先级防卡死)
+    const currentCoord = path[finalStep];
+    if (currentCoord && currentCoord.r === 6 && currentCoord.c === 6) {
+      return 'win';
     }
 
-    // 在 15x15 模式下，boardMap 暂时仅用于渲染背景，这里逻辑可以简化或预留
-    return null;
+    // 2. 索引胜利判定
+    if (finalStep >= pathLen - 1) return 'win';
+
+    // 3. 碰撞检测
+    const opponent = state.players.find(p => {
+      if (p.id === activePlayer.id) return false;
+      const oppPath = getPlayerPath(p.id);
+      const oppCoord = oppPath[p.step];
+      return oppCoord && oppCoord.r === currentCoord.r && oppCoord.c === currentCoord.c;
+    });
+
+    const theme = state.themes.find(t => t.id === activePlayer.themeId);
+    const task = theme?.tasks.length
+      ? theme.tasks[Math.floor(Math.random() * theme.tasks.length)]
+      : '完成一个挑战！';
+
+    if (opponent) {
+      return { type: 'collision', initiatorPlayerId: activePlayer.id, executorPlayerId: opponent.id, title: '不期而遇', subtitle: `任务来自「${theme?.name || ''}」`, icon: 'handshake', color: 'text-yellow-400', task, taskSourceId: activePlayer.themeId || '' };
+    }
+
+    // 普通格：触发任务卡
+    return { type: 'lucky', initiatorPlayerId: activePlayer.id, executorPlayerId: activePlayer.id, title: '任务卡', subtitle: `来自「${theme?.name || '未知主题'}」`, icon: 'star', color: 'text-blue-400', task, taskSourceId: activePlayer.themeId || '' };
   }, [state.players, state.turn, state.themes]);
 
   const resolveTask = useCallback((task: TaskEventData, outcome: 'accept' | 'reject') => {
@@ -247,7 +308,7 @@ export function useGameState() {
   const resetGame = useCallback(() => {
     setState(prev => ({
       ...prev, view: 'home', turn: 0,
-      players: prev.players.map(p => ({ ...p, themeId: null, step: -1 })),
+      players: prev.players.map(p => ({ ...p, themeId: null, step: 0 })),
       boardMap: generateBoardMap(), pathCoords: [], isRolling: false
     }));
   }, []);

@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --ios-bg: #000000;
-  --ios-card: #1C1C1E;
-  --ios-card-border: rgba(255, 255, 255, 0.1);
-  --primary-blue: #0A84FF;
-  --primary-pink: #FF375F;
+  --ios-bg: #1e0a13;
+  --ios-card: #2d1b33;
+  --ios-card-border: rgba(251, 113, 133, 0.15);
+  --primary-rose: #f43f5e;
+  --primary-pink: #fb7185;
 }
 
 body {
@@ -69,20 +69,21 @@ body {
   position: absolute;
   width: 80px;
   height: 80px;
-  background: #F2F2F7;
-  border: 1px solid #E5E5EA;
-  border-radius: 16px;
+  background: linear-gradient(135deg, #4c1d24 0%, #2d1b33 100%);
+  border: 1px solid rgba(251, 113, 133, 0.3);
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 0 15px rgba(251, 113, 133, 0.2), inset 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
 .dot {
   width: 14px;
   height: 14px;
-  background: #1C1C1E;
+  background: #fda4af;
   border-radius: 50%;
+  box-shadow: 0 0 8px rgba(251, 113, 133, 0.8);
 }
 
 .cube__face--front {
@@ -206,7 +207,7 @@ body {
 
 .flip-card-back {
   transform: rotateY(180deg);
-  background-color: #2C2C2E;
+  background: linear-gradient(135deg, #2d1b33 0%, #1a0b16 100%);
   display: flex;
   flex-direction: column;
   align-items: center;

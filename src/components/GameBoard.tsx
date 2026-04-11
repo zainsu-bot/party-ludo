@@ -1,132 +1,152 @@
-import { PathCoord, Player, PartyRole } from '../types';
-import { Trophy, Plane } from 'lucide-react';
-import { BOARD_SIZE, OUTER_LOOP, getPlayerPath, getBasePos } from '../utils/gameLogic';
+import { Player } from '../types';
+import {
+  GET_BOARD_MATRIX, getPlayerPath, SNAKE_COLS, SNAKE_ROWS
+} from '../utils/gameLogic';
+import { Trophy } from 'lucide-react';
 
 interface GameBoardProps {
   players: Player[];
   currentTurn: number;
+  boardTasks?: string[];
 }
 
-export function GameBoard({ players, currentTurn }: GameBoardProps) {
+const TILE_THEME: Record<string, { glow: string; border: string; accent: string; bg: string; bgStrong: string }> = {
+  default: { glow: 'shadow-[0_0_20px_rgba(255,255,255,0.1)]', border: 'border-white/10', accent: 'text-white/80', bg: 'bg-white/10', bgStrong: 'bg-white/20' },
+  blue:    { glow: 'shadow-[0_0_40px_rgba(59,130,246,0.6)]', border: 'border-blue-400', accent: 'text-blue-100', bg: 'bg-blue-600/40', bgStrong: 'bg-blue-600/60' },
+  rose:    { glow: 'shadow-[0_0_40px_rgba(244,114,182,0.6)]', border: 'border-rose-400', accent: 'text-rose-100', bg: 'bg-rose-600/40', bgStrong: 'bg-rose-600/60' },
+  green:   { glow: 'shadow-[0_0_40px_rgba(34,197,94,0.6)]', border: 'border-green-400', accent: 'text-green-100', bg: 'bg-green-600/40', bgStrong: 'bg-green-600/60' },
+  amber:   { glow: 'shadow-[0_0_40px_rgba(245,158,11,0.6)]', border: 'border-amber-400', accent: 'text-amber-100', bg: 'bg-amber-600/40', bgStrong: 'bg-amber-600/60' },
+  special: { glow: 'shadow-[0_0_45px_rgba(251,191,36,0.4)]', border: 'border-amber-300', accent: 'text-amber-100', bg: 'bg-amber-500/40', bgStrong: 'bg-amber-500/60' },
+  goal:    { glow: 'shadow-[0_0_60px_rgba(251,113,133,0.8)]', border: 'border-rose-400', accent: 'text-rose-50', bg: 'bg-rose-600/50', bgStrong: 'bg-rose-600/70' },
+  public:  { glow: 'shadow-[0_0_35px_rgba(168,85,247,0.5)]', border: 'border-purple-400', accent: 'text-purple-50', bg: 'bg-indigo-900/60', bgStrong: 'bg-purple-500/30' },
+};
+
+export function GameBoard({ players, currentTurn, boardTasks }: GameBoardProps) {
   
-  // 缓存每个角色的全量路径，避免重复计算
-  const playerPaths: Record<PartyRole, PathCoord[]> = {
-    GENTLEMAN: getPlayerPath('GENTLEMAN'),
-    LADY: getPlayerPath('LADY'),
-    KNIGHT: getPlayerPath('KNIGHT'),
-    ELF: getPlayerPath('ELF')
-  };
-
-  // 识别特定格子的属性
-  const getTileType = (r: number, c: number) => {
-    // 基地判定
-    if (r < 6 && c < 6) return { type: 'base', role: 'GENTLEMAN', color: 'bg-blue-500' };
-    if (r < 6 && c > 8) return { type: 'base', role: 'LADY', color: 'bg-green-500' };
-    if (r > 8 && c > 8) return { type: 'base', role: 'KNIGHT', color: 'bg-red-500' };
-    if (r > 8 && c < 6) return { type: 'base', role: 'ELF', color: 'bg-yellow-400' };
-
-    // 中心点判定
-    if (r >= 6 && r <= 8 && c >= 6 && c <= 8) {
-      if (r === 7 && c === 7) return { type: 'goal', color: 'bg-white', isCenter: true };
-      return { type: 'goal', color: 'bg-slate-800' };
-    }
-
-    // 路径判定 (基于 OUTER_LOOP 的索引分配颜色)
-    const loopIndex = OUTER_LOOP.findIndex(coord => coord.r === r && coord.c === c);
-    if (loopIndex !== -1) {
-      const colors = ['bg-yellow-400', 'bg-blue-500', 'bg-red-500', 'bg-green-500'];
-      return { type: 'path', color: colors[loopIndex % 4], index: loopIndex };
-    }
-
-    // 冲刺道判定 (Hardcoded for simplicity in UI)
-    if (c === 7 && r > 0 && r < 7) return { type: 'dash', color: 'bg-blue-500' };
-    if (r === 7 && c > 7 && c < 14) return { type: 'dash', color: 'bg-green-500' };
-    if (c === 7 && r > 7 && r < 14) return { type: 'dash', color: 'bg-red-500' };
-    if (r === 7 && c > 0 && c < 7) return { type: 'dash', color: 'bg-yellow-400' };
-
-    return { type: 'empty', color: 'bg-transparent' };
-  };
-
-  const renderTile = (r: number, c: number) => {
-    const tile = getTileType(r, c);
-    
-    let baseClasses = "relative w-full aspect-square border-[0.5px] border-white/5 flex items-center justify-center transition-all ";
-    baseClasses += tile.color;
-
-    if (tile.type === 'base') {
-      // 只有在特定位置显示起飞飞机图标
-      const isBaseSlot = (r === 2 || r === 3) && (c === 2 || c === 3 || c === 11 || c === 12);
-      return (
-        <div key={`${r}-${c}`} className={`${baseClasses} rounded-sm opacity-90`}>
-          {isBaseSlot && <div className="w-4 h-4 rounded-full bg-white/30 flex items-center justify-center"><Plane size={10} className="text-white"/></div>}
-        </div>
-      );
-    }
-
-    if (tile.type === 'goal') {
-      return (
-        <div key={`${r}-${c}`} className={`${baseClasses} rounded-none`}>
-          {tile.isCenter && <Trophy size={20} className="text-amber-400 animate-pulse"/>}
-        </div>
-      );
-    }
-
-    if (tile.type === 'empty') {
-      return <div key={`${r}-${c}`} className={`${baseClasses} bg-slate-900/30`} />;
-    }
-
+  const renderPlayers = (here: Player[]) => {
+    if (here.length === 0) return null;
     return (
-      <div key={`${r}-${c}`} className={`${baseClasses} rounded-sm shadow-inner`}>
-        {/* 这里将来可以放任务数字 */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+        <div className="flex flex-wrap items-center justify-center gap-0.5 p-1 w-full h-full">
+          {here.map(p => (
+            <div
+              key={p.id}
+              className={`
+                w-7 h-7 lg:w-9 lg:h-9 rounded-full border-[3px] border-white flex items-center justify-center 
+                text-[10px] lg:text-sm font-black shadow-2xl transform transition-all duration-300
+                ${p.id === currentTurn ? 'scale-110 z-10 animate-bounce ring-[6px] ring-white/40' : 'opacity-100 scale-100'}
+              `}
+              style={{ 
+                backgroundColor: p.color, 
+                boxShadow: `0 0 20px ${p.color}, inset 0 0 10px rgba(0,0,0,0.3)`,
+                color: 'white',
+                textShadow: '0 2px 4px rgba(0,0,0,0.4)'
+              }}
+            >
+              {p.name.substring(0, 1)}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderTile = (row: number, col: number) => {
+    const matrixValue = GET_BOARD_MATRIX()[row][col];
+    
+    // 根据当前坐标查找落在这里的棋子
+    const here = players.filter(p => {
+      const path = getPlayerPath(p.id);
+      const coord = path[p.step];
+      return coord && coord.r === row && coord.c === col;
+    });
+
+    const isActivePlayerHere = here.some(p => p.id === currentTurn);
+
+    // 1. 处理基地 (5, 6, 7, 8)
+    const baseThemes: Record<string | number, { bg: string; border: string; shadow: string; glow: string; themeKey: string }> = {
+      5:   { bg: 'bg-blue-600/50',  border: 'border-blue-400',  shadow: 'shadow-[0_0_40px_rgba(59,130,246,0.6)]', glow: 'from-blue-400/40', themeKey: 'blue' },
+      6:   { bg: 'bg-rose-600/50',  border: 'border-rose-400',  shadow: 'shadow-[0_0_40px_rgba(244,63,94,0.6)]', glow: 'from-rose-400/40', themeKey: 'rose' },
+      7:   { bg: 'bg-green-600/50', border: 'border-green-400', shadow: 'shadow-[0_0_40px_rgba(34,197,94,0.6)]', glow: 'from-green-400/40', themeKey: 'green' },
+      8:   { bg: 'bg-stone-600/50', border: 'border-stone-400', shadow: 'shadow-[0_0_40px_rgba(162,132,94,0.6)]', glow: 'from-stone-400/40', themeKey: 'amber' },
+    };
+
+    if (matrixValue !== null && baseThemes[matrixValue as any]) {
+      const b = baseThemes[matrixValue as any];
+      return (
+        <div key={`${row}-${col}`} className={`relative aspect-square rounded-2xl ${b.bg} border-[3px] ${b.border} ${b.shadow} backdrop-blur-2xl transition-all duration-700`}>
+           <div className={`absolute inset-0 bg-gradient-to-br ${b.glow} to-transparent opacity-50`} />
+           {renderPlayers(here)}
+        </div>
+      );
+    }
+
+    // 2. 处理航道 (2: 公共, a,b,c,d: 个人冲刺)
+    const laneThemes: Record<string | number, string> = {
+      2: 'public',
+      'a': 'blue', 'b': 'rose', 'c': 'amber', 'd': 'green'
+    };
+
+    if (matrixValue !== null && laneThemes[matrixValue as any]) {
+      const themeKey = laneThemes[matrixValue as any];
+      const theme = (TILE_THEME as any)[themeKey] || TILE_THEME.default;
+      return (
+        <div
+          key={`${row}-${col}`}
+          className={`
+            relative aspect-square rounded-2xl flex flex-col items-center justify-center 
+            transition-all duration-500 select-none border-[3px]
+            backdrop-blur-2xl ${theme.bg}
+            ${theme.border} ${theme.glow}
+            ${isActivePlayerHere ? 'scale-105 border-white ring-8 ring-white/20 z-10 shadow-[0_0_50px_rgba(255,255,255,0.4)]' : ''}
+          `}
+        >
+          {renderPlayers(here)}
+          {boardTasks && boardTasks[row * SNAKE_COLS + col] && here.length === 0 && (
+            <span className="text-[10px] text-white/20 font-bold block scale-75 whitespace-nowrap overflow-hidden">
+              {boardTasks[row * SNAKE_COLS + col]}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    // 3. 处理终点中心 (1)
+    if (matrixValue === 1) {
+      return (
+        <div key={`${row}-${col}`} className={`relative aspect-square rounded-2xl flex items-center justify-center border-[3px] ${TILE_THEME.goal.border} ${TILE_THEME.goal.glow} backdrop-blur-3xl bg-gradient-to-br from-amber-400 via-rose-500 to-amber-600 shadow-[0_0_80px_rgba(251,113,133,0.6)]`}>
+          <div className="absolute inset-0 bg-white/20 rounded-2xl animate-pulse" />
+          <Trophy size={32} className="text-white drop-shadow-[0_0_20px_rgba(251,191,36,1)] z-10" />
+          {renderPlayers(here)}
+        </div>
+      );
+    }
+
+    // 4. 空白区域 (0) - 增加微弱底盘
+    return (
+      <div key={`${row}-${col}`} className="aspect-square flex items-center justify-center">
+        <div className="w-1 h-1 bg-white/10 rounded-full" />
       </div>
     );
   };
 
   return (
-    <div className="w-full relative select-none p-2 bg-[#1a0b3b] rounded-2xl shadow-2xl border-4 border-slate-800" style={{ maxWidth: '600px' }}>
-      {/* 棋盘背景格纹 */}
-      <div className="w-full grid grid-cols-15">
-        {Array.from({ length: BOARD_SIZE }).map((_, r) =>
-          Array.from({ length: BOARD_SIZE }).map((_, c) => renderTile(r, c))
-        )}
-      </div>
-
-      {/* 玩家棋子层 */}
-      <div className="absolute inset-0 pointer-events-none p-2">
-        <div className="relative w-full h-full">
-          {players.map((player) => {
-            // 获取当前位置坐标
-            let coord: PathCoord;
-            if (player.step === -1) {
-              // 还在停机坪
-              coord = getBasePos(player.role, 0); // 这里 index 先传 0
-            } else {
-              const path = playerPaths[player.role];
-              coord = path[player.step] || { r: 0, c: 0 };
-            }
-
-            const isActive = player.id === currentTurn;
-            
-            return (
-              <div
-                key={player.id}
-                className="absolute flex items-center justify-center transition-all duration-500 ease-out z-20"
-                style={{
-                  width: `${100 / BOARD_SIZE}%`,
-                  height: `${100 / BOARD_SIZE}%`,
-                  top: `${(coord.r / BOARD_SIZE) * 100}%`,
-                  left: `${(coord.c / BOARD_SIZE) * 100}%`,
-                }}
-              >
-                <div 
-                  className={`relative flex items-center justify-center w-6 h-6 rounded-full shadow-2xl transition-transform duration-300 border-2 border-white ${isActive ? 'scale-125 z-30 shadow-[0_0_15px_rgba(255,255,255,0.8)]' : 'opacity-90'}`}
-                  style={{ backgroundColor: player.color }}
-                >
-                   <span className="text-white text-[10px] font-bold leading-none">{player.name.substring(0, 1)}</span>
-                </div>
-              </div>
-            );
-          })}
+    <div className="w-full flex flex-col items-center gap-6">
+      <div 
+        className="relative p-3 md:p-6 rounded-[48px] shadow-[0_30px_100px_rgba(0,0,0,0.8)] border-[6px] border-white/5 overflow-hidden"
+        style={{
+          width: '100%',
+          maxWidth: '850px',
+          background: '#0a0508',
+        }}
+      >
+        <div 
+          className="grid gap-2 relative z-10"
+          style={{ gridTemplateColumns: `repeat(${SNAKE_COLS}, minmax(0, 1fr))` }}
+        >
+          {Array.from({ length: SNAKE_ROWS }, (_, r) =>
+            Array.from({ length: SNAKE_COLS }, (_, c) => renderTile(r, c))
+          )}
         </div>
       </div>
     </div>

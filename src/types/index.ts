@@ -1,6 +1,6 @@
 export type TileType = 'blank' | 'lucky' | 'trap' | 'base' | 'goal';
 
-export type PartyRole = 'GENTLEMAN' | 'LADY' | 'KNIGHT' | 'ELF';
+export type PartyRole = 'GENTLEMAN' | 'LADY' | 'KNIGHT';
 
 export interface Player {
   id: number;
@@ -12,7 +12,7 @@ export interface Player {
   isFinished: boolean;
 }
 
-export type ThemeAudience = 'common' | 'GENTLEMAN' | 'LADY' | 'KNIGHT' | 'ELF';
+export type ThemeAudience = 'common' | 'GENTLEMAN' | 'LADY' | 'KNIGHT';
 
 export interface Theme {
   id: string;
@@ -35,6 +35,7 @@ export interface GameState {
   boardMap: TileType[];
   pathCoords: PathCoord[];
   isRolling: boolean;
+  boardTasks?: string[];
 }
 
 export interface TaskEventData {
