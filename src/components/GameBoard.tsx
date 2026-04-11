@@ -75,8 +75,8 @@ export function GameBoard({ players, currentTurn, boardTasks }: GameBoardProps) 
     if (matrixValue !== null && baseThemes[matrixValue as any]) {
       const b = baseThemes[matrixValue as any];
       return (
-        <div key={`${row}-${col}`} className={`relative aspect-square rounded-2xl ${b.bg} border-[3px] ${b.border} ${b.shadow} backdrop-blur-2xl transition-all duration-700`}>
-           <div className={`absolute inset-0 bg-gradient-to-br ${b.glow} to-transparent opacity-50`} />
+        <div key={`${row}-${col}`} className={`relative w-full h-full aspect-square rounded-md sm:rounded-lg ${b.bg} border-[2px] lg:border-[3px] ${b.border} ${b.shadow} backdrop-blur-2xl transition-all duration-700`}>
+           <div className={`absolute inset-0 bg-gradient-to-br ${b.glow} to-transparent opacity-50 rounded-md sm:rounded-lg`} />
            {renderPlayers(here)}
         </div>
       );
@@ -95,11 +95,11 @@ export function GameBoard({ players, currentTurn, boardTasks }: GameBoardProps) 
         <div
           key={`${row}-${col}`}
           className={`
-            relative aspect-square rounded-2xl flex flex-col items-center justify-center 
-            transition-all duration-500 select-none border-[3px]
+            relative w-full h-full aspect-square rounded-md sm:rounded-lg transition-all duration-500
+            border-[2px] lg:border-[3px]
             backdrop-blur-2xl ${theme.bg}
             ${theme.border} ${theme.glow}
-            ${isActivePlayerHere ? 'scale-105 border-white ring-8 ring-white/20 z-10 shadow-[0_0_50px_rgba(255,255,255,0.4)]' : ''}
+            ${isActivePlayerHere ? 'scale-105 border-white ring-[4px] sm:ring-[6px] ring-white/20 z-10 shadow-[0_0_50px_rgba(255,255,255,0.4)]' : ''}
           `}
         >
           {renderPlayers(here)}
@@ -115,9 +115,9 @@ export function GameBoard({ players, currentTurn, boardTasks }: GameBoardProps) 
     // 3. 处理终点中心 (1)
     if (matrixValue === 1) {
       return (
-        <div key={`${row}-${col}`} className={`relative aspect-square rounded-2xl flex items-center justify-center border-[3px] ${TILE_THEME.goal.border} ${TILE_THEME.goal.glow} backdrop-blur-3xl bg-gradient-to-br from-amber-400 via-rose-500 to-amber-600 shadow-[0_0_80px_rgba(251,113,133,0.6)]`}>
-          <div className="absolute inset-0 bg-white/20 rounded-2xl animate-pulse" />
-          <Trophy size={32} className="text-white drop-shadow-[0_0_20px_rgba(251,191,36,1)] z-10" />
+        <div key={`${row}-${col}`} className={`relative w-full h-full aspect-square rounded-md sm:rounded-lg flex items-center justify-center border-[2px] lg:border-[3px] ${TILE_THEME.goal.border} ${TILE_THEME.goal.glow} backdrop-blur-3xl bg-gradient-to-br from-amber-400 via-rose-500 to-amber-600 shadow-[0_0_80px_rgba(251,113,133,0.6)]`}>
+          <div className="absolute inset-0 bg-white/20 rounded-md sm:rounded-lg animate-pulse" />
+          <Trophy size={20} className="text-white drop-shadow-[0_0_20px_rgba(251,191,36,1)] z-10 sm:scale-125" />
           {renderPlayers(here)}
         </div>
       );

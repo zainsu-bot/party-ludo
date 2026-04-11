@@ -112,27 +112,34 @@ export function GameView({
               </div>
             </div>
 
-            {/* Status Text (Middle) */}
-            <div className="flex-1 text-center hidden sm:block">
-              <span className="text-xs font-bold text-rose-200/60 uppercase tracking-[0.2em] animate-pulse">
-                {isRolling ? '掷骰中...' : (isMoving ? '移动中...' : '等待掷骰')}
+            {/* Status Text (Right) */}
+            <div className="flex-1 text-right sm:text-center mt-1 pr-2">
+              <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest block transition-colors ${
+                isRolling || isMoving ? 'text-rose-200/60 animate-pulse' : 'text-rose-300'
+              }`}>
+                {isRolling ? '👉 掷骰中...' : (isMoving ? '🏃 移动中...' : '⌛ 等待操作')}
               </span>
-            </div>
-
-            {/* Mini Dice Container (Right) */}
-            <div className="flex items-center gap-4">
-              <div 
-                className={`cursor-pointer transform scale-[0.55] origin-center -my-6 transition-all active:scale-[0.5] ${isRolling || isMoving ? 'pointer-events-none' : ''}`}
-                onClick={handleRoll}
-              >
-                <Dice isRolling={isRolling} result={diceResult} onRollComplete={handleRollComplete} />
-              </div>
             </div>
           </div>
         </div>
 
+        {/* 专属大骰子区域 (居中上方) */}
+        <div className="w-full max-w-[800px] shrink-0 py-2 flex flex-col items-center justify-center relative">
+          {!isRolling && !isMoving && (
+            <div className="absolute -top-1 text-emerald-400 font-bold text-xs tracking-widest animate-bounce drop-shadow-[0_0_10px_rgba(52,211,153,0.8)] pointer-events-none select-none z-10 px-4 py-1.5 bg-black/40 rounded-full border border-emerald-500/30 backdrop-blur-sm">
+              ▼ 点击这颗骰子投掷 ▼
+            </div>
+          )}
+          <div 
+            className={`cursor-pointer transform scale-[0.8] sm:scale-100 origin-center transition-all duration-200 active:scale-[0.75] ${isRolling || isMoving ? 'pointer-events-none opacity-80' : 'drop-shadow-[0_15px_30px_rgba(244,63,94,0.5)] hover:scale-[0.85] sm:hover:scale-105'}`}
+            onClick={handleRoll}
+          >
+            <Dice isRolling={isRolling} result={diceResult} onRollComplete={handleRollComplete} />
+          </div>
+        </div>
+
         {/* Main Game Board */}
-        <div className="w-full max-w-[800px] flex-1 flex flex-col justify-center items-center py-4">
+        <div className="w-full max-w-[800px] flex-1 flex flex-col justify-center items-center py-2">
           <GameBoard players={players} currentTurn={currentTurn} boardTasks={boardTasks} />
         </div>
 

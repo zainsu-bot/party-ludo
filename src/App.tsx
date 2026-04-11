@@ -37,6 +37,12 @@ function App() {
   const [winnerId, setWinnerId] = useState<number | null>(null);
   const [isCreateThemeModalOpen, setIsCreateThemeModalOpen] = useState(false);
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const handleSelectTheme = (playerId: number) => {
     setSelectedPlayerId(playerId);
@@ -55,7 +61,7 @@ function App() {
   const handleStartGame = () => {
     const success = startGame();
     if (!success) {
-      alert('请先为所有玩家选择任务包');
+      showToast('⚠️ 无法开始：请先为所有玩家选择任务主题');
     }
   };
 
@@ -110,12 +116,12 @@ function App() {
       </div>
 
       <div className="relative z-10 w-full max-w-[430px] h-full flex flex-col bg-black/20">
-        <header className="pt-12 pb-2 px-6 shrink-0 flex justify-between items-start">
+        <header className="pt-4 pb-2 px-6 shrink-0 flex justify-between items-start">
           <div>
-            <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
+            <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">
               Party Game
             </div>
-            <h1 className="text-3xl font-bold text-rose-100 tracking-tight drop-shadow-sm">派对飞行棋</h1>
+            <h1 className="text-2xl font-bold text-rose-100 tracking-tight drop-shadow-sm">派对飞行棋</h1>
           </div>
           <div className="flex flex-col items-end gap-2 mt-1">
             <a
@@ -138,7 +144,7 @@ function App() {
 
         <main className="flex-1 relative overflow-hidden">
           <div
-            className={`absolute inset-0 flex flex-col px-6 pt-10 pb-32 transition-all duration-500 ease-in-out ${state.view === 'home'
+            className={`absolute inset-0 flex flex-col px-4 pt-2 pb-20 transition-all duration-500 ease-in-out ${state.view === 'home'
                 ? 'translate-x-0 opacity-100'
                 : 'opacity-0 pointer-events-none -translate-x-full'
               }`}
@@ -153,7 +159,7 @@ function App() {
           </div>
 
           <div
-            className={`absolute inset-0 px-6 pt-4 transition-all duration-500 ease-in-out pb-32 overflow-y-auto no-scrollbar ${state.view === 'themes'
+            className={`absolute inset-0 px-4 pt-2 transition-all duration-500 ease-in-out pb-20 overflow-y-auto no-scrollbar ${state.view === 'themes'
                 ? 'translate-x-0 opacity-100'
                 : 'opacity-0 pointer-events-none translate-x-full'
               }`}
@@ -229,6 +235,15 @@ function App() {
           onBack={handleBackFromGame}
           boardTasks={state.boardTasks}
         />
+      )}
+
+      {/* Global Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-20 left-0 w-full z-[100] flex justify-center pointer-events-none animate-[bounce_0.5s_infinite]">
+          <div className="w-[85%] max-w-[340px] bg-rose-600/95 backdrop-blur-xl text-white px-5 py-3 rounded-2xl shadow-[0_10px_40px_rgba(225,29,72,0.8)] font-black text-[14px] text-center tracking-wide border-2 border-white/20 break-words leading-relaxed">
+            {toastMessage}
+          </div>
+        </div>
       )}
     </div>
   );
