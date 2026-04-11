@@ -27,10 +27,11 @@ function normalizePlayers(input: unknown): Player[] {
     const record = isRecord(p) ? p : {};
     const roleValue = record.role as PartyRole;
     const themeIdValue = record.themeId;
-
+    const defaultNames: Record<string, string> = { GENTLEMAN: '绅士', LADY: '淑女', KNIGHT: '骑士', ELF: '精灵' };
+    
     return {
       id: typeof record.id === 'number' ? record.id : index,
-      name: typeof record.name === 'string' ? record.name : `玩家${index + 1}`,
+      name: typeof record.name === 'string' && !record.name.startsWith('玩家') && !['丈夫', '妻子', '公牛', '女伴'].includes(record.name) ? record.name : (defaultNames[roleValue as string] || `玩家${index + 1}`),
       color: typeof record.color === 'string' ? record.color : '#FFFFFF',
       role: ['GENTLEMAN', 'LADY', 'KNIGHT', 'ELF'].includes(roleValue) ? roleValue : 'GENTLEMAN',
       step: typeof record.step === 'number' ? record.step : -1,

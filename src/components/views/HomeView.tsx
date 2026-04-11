@@ -28,7 +28,7 @@ export function HomeView({ players, themes, onSelectTheme, onStartGame, onUpdate
       if (newCount > players.length) {
         newPlayers.push({
           id: newCount - 1,
-          name: `玩家${newCount}`,
+          name: newCount === 4 ? '精灵' : '骑士',
           color: newCount === 4 ? '#E5A50A' : '#32D74B',
           role: newCount === 4 ? 'ELF' : 'KNIGHT',
           step: -1,
