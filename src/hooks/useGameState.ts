@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GameState, Player, TaskEventData, Theme, PartyRole } from '../types';
 import { loadFromStorage, saveToStorage } from '../utils/localStorage';
-import { generateSpiralPath, generateBoardMap, calculateNewPosition, TILES_COUNT } from '../utils/gameLogic';
+import { generateBoardMap, calculateNewPosition, canStart, getPlayerPath } from '../utils/gameLogic';
 import { DEFAULT_THEMES } from '../data/defaultThemes';
 
 const STORAGE_KEY = 'party-ludo-game-state';
 
 export const initialPlayers: Player[] = [
-  { id: 0, name: '绅士', color: '#0A84FF', role: 'husband', step: 0, themeId: null },
-  { id: 1, name: '淑女', color: '#FF375F', role: 'wife', step: 0, themeId: null }
+  { id: 0, name: '绅士', color: '#0A84FF', role: 'GENTLEMAN', step: -1, themeId: null, isFinished: false },
+  { id: 1, name: '淑女', color: '#FF375F', role: 'LADY', step: -1, themeId: null, isFinished: false }
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -32,9 +32,10 @@ function normalizePlayers(input: unknown): Player[] {
       id: typeof record.id === 'number' ? record.id : index,
       name: typeof record.name === 'string' ? record.name : `玩家${index + 1}`,
       color: typeof record.color === 'string' ? record.color : '#FFFFFF',
-      role: ['husband', 'wife', 'bull', 'female_partner'].includes(roleValue) ? roleValue : 'husband',
-      step: typeof record.step === 'number' ? record.step : 0,
-      themeId: typeof themeIdValue === 'string' || themeIdValue === null ? themeIdValue : null
+      role: ['GENTLEMAN', 'LADY', 'KNIGHT', 'ELF'].includes(roleValue) ? roleValue : 'GENTLEMAN',
+      step: typeof record.step === 'number' ? record.step : -1,
+      themeId: typeof themeIdValue === 'string' || themeIdValue === null ? themeIdValue : null,
+      isFinished: !!record.isFinished
     };
   });
 }
@@ -58,7 +59,7 @@ function normalizeThemes(input: unknown): Theme[] {
         name: typeof record.name === 'string' ? record.name : '未命名主题',
         desc: typeof record.desc === 'string' ? record.desc : '',
         audience:
-          ['common', 'husband', 'wife', 'bull', 'female_partner'].includes(audienceValue as string)
+          ['common', 'GENTLEMAN', 'LADY', 'KNIGHT', 'ELF'].includes(audienceValue as string)
             ? (audienceValue as Theme['audience'])
             : 'common',
         tasks
@@ -88,8 +89,8 @@ function normalizeGameState(saved: unknown): GameState | null {
     turn: typeof s.turn === 'number' && s.turn >= 0 && s.turn < players.length ? s.turn : 0,
     players,
     themes,
-    boardMap: Array.isArray(s.boardMap) && s.boardMap.length === TILES_COUNT ? s.boardMap : generateBoardMap(),
-    pathCoords: Array.isArray(s.pathCoords) && s.pathCoords.length === TILES_COUNT ? s.pathCoords : generateSpiralPath(),
+    boardMap: generateBoardMap(),
+    pathCoords: [], // 15x15 模式下不再需要全局路径，路径是 per-player 的
     isRolling: !!s.isRolling
   };
 }
@@ -115,7 +116,7 @@ export function useGameState() {
       players: initialPlayers,
       themes: DEFAULT_THEMES,
       boardMap: generateBoardMap(),
-      pathCoords: generateSpiralPath(),
+      pathCoords: [],
       isRolling: false
     };
   });
@@ -194,7 +195,17 @@ export function useGameState() {
   const movePlayer = useCallback((steps: number) => {
     setState(prev => {
       const activePlayer = prev.players[prev.turn];
-      return { ...prev, players: prev.players.map(p => p.id === activePlayer.id ? { ...p, step: calculateNewPosition(activePlayer.step, steps) } : p) };
+      const isHome = activePlayer.step === -1;
+      
+      // 起飞逻辑
+      if (isHome) {
+        if (canStart(steps)) {
+          return { ...prev, players: prev.players.map(p => p.id === activePlayer.id ? { ...p, step: 0 } : p) };
+        }
+        return prev;
+      }
+      
+      return { ...prev, players: prev.players.map(p => p.id === activePlayer.id ? { ...p, step: activePlayer.step + steps } : p) };
     });
   }, []);
 
@@ -205,33 +216,25 @@ export function useGameState() {
   const setIsRolling = useCallback((rolling: boolean) => setState(prev => ({ ...prev, isRolling: rolling })), []);
 
   const checkTile = useCallback((landingStep: number): TaskEventData | 'win' | null => {
-    if (landingStep === TILES_COUNT - 1) return 'win';
-
     const activePlayer = state.players[state.turn];
+    const playerPath = getPlayerPath(activePlayer.role);
+    
+    if (landingStep >= playerPath.length - 1) return 'win';
+
     const opponents = state.players.filter(p => p.id !== activePlayer.id);
     const opponent = opponents[Math.floor(Math.random() * opponents.length)];
 
     let overlappedOpponent = state.players.find(p => p.id !== activePlayer.id && p.step === landingStep);
     
-    if (landingStep !== 0 && overlappedOpponent) {
+    if (landingStep !== -1 && overlappedOpponent) {
       const theme = state.themes.find(t => t.id === activePlayer.themeId);
       const task = theme?.tasks[Math.floor(Math.random() * theme.tasks.length)] || '';
       return { type: 'collision', initiatorPlayerId: activePlayer.id, executorPlayerId: overlappedOpponent.id, title: '不期而遇', subtitle: `任务来自「${theme?.name || ''}」`, icon: 'handshake', color: 'text-yellow-400', task, taskSourceId: activePlayer.themeId || '' };
     }
 
-    const tileType = state.boardMap[landingStep];
-    if (tileType === 'lucky') {
-      const theme = state.themes.find(t => t.id === activePlayer.themeId);
-      const task = theme?.tasks[Math.floor(Math.random() * theme.tasks.length)] || '';
-      return { type: 'lucky', initiatorPlayerId: activePlayer.id, executorPlayerId: activePlayer.id, title: '幸运时刻', subtitle: `任务来自「${theme?.name || ''}」`, icon: 'favorite', color: 'text-[#FF375F]', task, taskSourceId: activePlayer.themeId || '' };
-    }
-    if (tileType === 'trap') {
-      const theme = state.themes.find(t => t.id === opponent.themeId);
-      const task = theme?.tasks[Math.floor(Math.random() * theme.tasks.length)] || '';
-      return { type: 'trap', initiatorPlayerId: activePlayer.id, executorPlayerId: activePlayer.id, title: '意外陷阱', subtitle: `任务来自「${theme?.name || ''}」`, icon: 'lock', color: 'text-[#BF5AF2]', task, taskSourceId: opponent.themeId || '' };
-    }
+    // 在 15x15 模式下，boardMap 暂时仅用于渲染背景，这里逻辑可以简化或预留
     return null;
-  }, [state.players, state.turn, state.themes, state.boardMap]);
+  }, [state.players, state.turn, state.themes]);
 
   const resolveTask = useCallback((task: TaskEventData, outcome: 'accept' | 'reject') => {
     setState(prev => {
@@ -247,8 +250,8 @@ export function useGameState() {
   const resetGame = useCallback(() => {
     setState(prev => ({
       ...prev, view: 'home', turn: 0,
-      players: prev.players.map(p => ({ ...p, themeId: null, step: 0 })),
-      boardMap: generateBoardMap(), pathCoords: generateSpiralPath(), isRolling: false
+      players: prev.players.map(p => ({ ...p, themeId: null, step: -1 })),
+      boardMap: generateBoardMap(), pathCoords: [], isRolling: false
     }));
   }, []);
 
