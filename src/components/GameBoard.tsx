@@ -32,9 +32,9 @@ export function GameBoard({ players, currentTurn, boardTasks }: GameBoardProps) 
             <div
               key={p.id}
               className={`
-                w-7 h-7 lg:w-9 lg:h-9 rounded-full border-[3px] border-white flex items-center justify-center 
-                text-[10px] lg:text-sm font-black shadow-2xl transform transition-all duration-300
-                ${p.id === currentTurn ? 'scale-110 z-10 animate-bounce ring-[6px] ring-white/40' : 'opacity-100 scale-100'}
+                w-5 h-5 sm:w-7 sm:h-7 lg:w-9 lg:h-9 rounded-full border-[2px] sm:border-[3px] border-white flex items-center justify-center 
+                text-[8px] sm:text-[10px] lg:text-sm font-black shadow-2xl transform transition-all duration-300
+                ${p.id === currentTurn ? 'scale-110 z-10 animate-bounce ring-[4px] sm:ring-[6px] ring-white/40' : 'opacity-100 scale-100'}
               `}
               style={{ 
                 backgroundColor: p.color, 

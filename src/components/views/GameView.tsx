@@ -104,16 +104,16 @@ export function GameView({
               >
                 {activePlayer.name.substring(0, 1)}
               </div>
-              <div className="hidden sm:block">
-                <div className="text-rose-100 font-black text-sm">{activePlayer.name}</div>
-                <div className="text-[10px] text-rose-200/40 font-bold uppercase tracking-wider">
+              <div className="flex flex-col ml-1">
+                <div className="text-rose-100 font-black text-xs sm:text-sm max-w-[80px] sm:max-w-[none] truncate">{activePlayer.name}</div>
+                <div className="text-[9px] sm:text-[10px] text-rose-200/40 font-bold uppercase tracking-wider">
                   进度 {activePlayer.step} / {pathLen - 1}
                 </div>
               </div>
             </div>
 
             {/* Status Text (Middle) */}
-            <div className="flex-1 text-center">
+            <div className="flex-1 text-center hidden sm:block">
               <span className="text-xs font-bold text-rose-200/60 uppercase tracking-[0.2em] animate-pulse">
                 {isRolling ? '掷骰中...' : (isMoving ? '移动中...' : '等待掷骰')}
               </span>
