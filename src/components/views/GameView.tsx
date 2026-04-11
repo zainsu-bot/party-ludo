@@ -138,7 +138,7 @@ export function GameView({
 
       </div>
 
-      {/* 调试工具：用于最后环节验证 */}
+      {/* 调试工具：仅用于最后环节验证 - 如需使用请取消下方注释
       <div className="fixed bottom-20 right-4 flex flex-col gap-2 z-[100] opacity-50 hover:opacity-100 transition-opacity pointer-events-auto">
         <div className="text-[10px] text-white/40 text-right uppercase font-bold">调试工具</div>
         <button 
@@ -155,6 +155,7 @@ export function GameView({
           className="bg-rose-900/60 border border-rose-400/30 text-white p-2 rounded-lg text-xs"
         >👑 夺冠前夕</button>
       </div>
+      */}
     </div>
   );
 }
