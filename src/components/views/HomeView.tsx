@@ -47,12 +47,9 @@ export function HomeView({ players, themes, onSelectTheme, onStartGame, onUpdate
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-start space-y-3 pt-2 px-4">
-      <div className="text-center mb-1 shrink-0">
-        <h2 className="text-2xl text-white font-black tracking-widest relative drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
-          派对飞行棋
-        </h2>
-        <p className="text-[11px] text-rose-300/80 mt-1 font-medium tracking-wide">情密派对版 · 角色扮演交互</p>
+    <div className="flex-1 flex flex-col justify-start space-y-3 pt-0 px-4 overflow-y-auto no-scrollbar pb-6 relative z-10 w-full">
+      <div className="text-center mb-0 shrink-0">
+        <p className="text-[11px] text-rose-300/80 font-bold tracking-widest uppercase bg-rose-950/40 inline-block px-4 py-1 rounded-full border border-rose-500/20 backdrop-blur-sm shadow-sm">情密派对版 · 角色扮演交互</p>
       </div>
 
       <div className="bg-rose-950/40 backdrop-blur-2xl rounded-2xl p-3 border border-white/20 shadow-2xl">
@@ -119,7 +116,7 @@ export function HomeView({ players, themes, onSelectTheme, onStartGame, onUpdate
       <div className="flex-1" />
 
       <button
-        className="shrink-0 w-full h-14 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 rounded-xl text-white font-black text-lg shadow-[0_5px_20px_rgba(20,184,166,0.3)] active:scale-[0.98] flex items-center justify-center gap-2 mb-4 transition-all border-t border-white/20"
+        className="shrink-0 w-full h-14 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 rounded-xl text-white font-black text-lg shadow-[0_5px_20px_rgba(20,184,166,0.5)] active:scale-[0.98] flex items-center justify-center gap-2 mb-2 transition-all border-t border-white/20"
         onClick={onStartGame}
       >
         <span className="tracking-widest">开启派对游戏</span>
