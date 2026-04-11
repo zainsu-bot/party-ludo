@@ -1,17 +1,18 @@
-export type TileType = 'blank' | 'lucky' | 'trap';
+export type TileType = 'blank' | 'lucky' | 'trap' | 'base' | 'goal';
 
-export type PartyRole = 'husband' | 'wife' | 'bull' | 'female_partner';
+export type PartyRole = 'GENTLEMAN' | 'LADY' | 'KNIGHT' | 'ELF';
 
 export interface Player {
   id: number;
   name: string;
   color: string;
   role: PartyRole;
-  step: number;
+  step: number; // Position in the pathCoords array (-1 means in base)
   themeId: string | null;
+  isFinished: boolean;
 }
 
-export type ThemeAudience = 'common' | 'husband' | 'wife' | 'bull' | 'female_partner';
+export type ThemeAudience = 'common' | 'GENTLEMAN' | 'LADY' | 'KNIGHT' | 'ELF';
 
 export interface Theme {
   id: string;
