@@ -133,12 +133,11 @@ function App() {
             >
               <Github size={24} />
             </a>
-            <a
-              href="https://github.com/zainsu-bot/party-ludo"
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-            >
-              问题反馈：GitHub Project
-            </a>
+            <img 
+              src="https://api.visitorbadge.io/api/visitors?path=zainsu-bot.party-ludo&label=HOT&countColor=%23e11d48&labelColor=%231e1b4b" 
+              alt="Total Heat" 
+              className="h-5 drop-shadow-[0_0_8px_rgba(225,29,72,0.4)] opacity-90 hover:opacity-100 transition-opacity mt-1"
+            />
           </div>
         </header>
 
