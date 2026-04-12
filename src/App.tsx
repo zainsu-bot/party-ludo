@@ -121,9 +121,16 @@ function App() {
             <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">
               Party Game
             </div>
-            <h1 className="text-2xl font-bold text-rose-100 tracking-tight drop-shadow-sm">派对飞行棋</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-rose-100 tracking-tight drop-shadow-sm shrink-0">派对飞行棋</h1>
+              <img 
+                src="https://api.visitorbadge.io/api/visitors?path=zainsu-bot.party-ludo&label=%E6%80%BB%E8%AE%BF%E9%97%AE%E9%87%8F&countColor=%23e11d48&labelColor=%231e1b4b" 
+                alt="总访问量" 
+                className="h-[18px] drop-shadow-[0_0_8px_rgba(225,29,72,0.4)] opacity-90 transition-opacity mt-1"
+              />
+            </div>
           </div>
-          <div className="flex flex-col items-end gap-2 mt-1">
+          <div className="flex flex-col items-end gap-1 mt-1 shrink-0">
             <a
               href="https://github.com/zainsu-bot/party-ludo"
               target="_blank"
@@ -133,11 +140,12 @@ function App() {
             >
               <Github size={24} />
             </a>
-            <img 
-              src="https://api.visitorbadge.io/api/visitors?path=zainsu-bot.party-ludo&label=HOT&countColor=%23e11d48&labelColor=%231e1b4b" 
-              alt="Total Heat" 
-              className="h-5 drop-shadow-[0_0_8px_rgba(225,29,72,0.4)] opacity-90 hover:opacity-100 transition-opacity mt-1"
-            />
+            <a
+              href="https://github.com/zainsu-bot/party-ludo"
+              className="text-[10px] text-gray-500 hover:text-gray-300 transition-colors whitespace-nowrap"
+            >
+              问题反馈：GitHub Project
+            </a>
           </div>
         </header>
 
