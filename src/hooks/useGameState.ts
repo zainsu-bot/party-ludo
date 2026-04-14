@@ -1,10 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GameState, Player, TaskEventData, Theme, PartyRole } from '../types';
 import { loadFromStorage, saveToStorage } from '../utils/localStorage';
-import { generateBoardMap, SNAKE_PATH, PATHS_BY_ROLE, getPlayerPath, OUTER_LOOP } from '../utils/gameLogic';
+import { generateBoardMap, SNAKE_PATH, getPlayerPath, OUTER_LOOP } from '../utils/gameLogic';
 import { DEFAULT_THEMES } from '../data/defaultThemes';
 
 const STORAGE_KEY = 'party-ludo-game-state';
+
+// 已废弃的主题 ID（从 localStorage 合并时过滤，防止旧缓存复活）
+const DEPRECATED_THEME_IDS: readonly string[] = [
+  'wild', 'cyber_speed',
+  'wild_husband', 'wild_wife', 'wild_bull',
+  'cyber_speed_husband', 'cyber_speed_wife', 'cyber_speed_bull',
+];
 
 export const initialPlayers: Player[] = [
   { id: 0, name: '绅士', color: '#0A84FF', role: 'GENTLEMAN', step: 0, themeId: null, isFinished: false, taskIndex: 0 },
@@ -84,11 +91,11 @@ function normalizePlayers(input: unknown): Player[] {
       id: typeof record.id === 'number' ? record.id : index,
       name: name,
       color: typeof record.color === 'string' ? record.color : '#FFFFFF',
-      role: ['GENTLEMAN', 'LADY', 'KNIGHT'].includes(roleValue) ? roleValue : (roleValue === ('ELF' as any) ? 'LADY' : 'GENTLEMAN'),
+      role: ['GENTLEMAN', 'LADY', 'KNIGHT'].includes(roleValue) ? roleValue : (roleValue === ('ELF' as PartyRole) ? 'LADY' : 'GENTLEMAN'),
       step: typeof record.step === 'number' ? Math.max(0, record.step) : 0,
       themeId: typeof themeIdValue === 'string' || themeIdValue === null ? themeIdValue : null,
       isFinished: !!record.isFinished,
-      taskIndex: typeof (record as any).taskIndex === 'number' ? (record as any).taskIndex : 0
+      taskIndex: typeof record['taskIndex'] === 'number' ? (record['taskIndex'] as number) : 0
     };
   });
 }
@@ -101,16 +108,11 @@ function normalizeThemes(input: unknown): Theme[] {
   DEFAULT_THEMES.forEach(t => themesMap.set(t.id, t));
 
   // 2. 合并来自存储的主题 (主要是保留用户自定义的主题)
-  const deprecatedIds = [
-    'wild', 'cyber_speed',
-    'wild_husband', 'wild_wife', 'wild_bull',
-    'cyber_speed_husband', 'cyber_speed_wife', 'cyber_speed_bull'
-  ];
   incoming.forEach(t => {
     if (isRecord(t) && typeof t.id === 'string') {
       const id = t.id;
-      // 如果 ID 不在默认主题中，说明是用户新建的主题，合并进来
-      if (!themesMap.has(id)) {
+      // 如果 ID 不在默认主题中，且不在弃用列表中，说明是用户新建的主题，合并进来
+      if (!themesMap.has(id) && !DEPRECATED_THEME_IDS.includes(id)) {
         const tasksValue = t.tasks;
         const tasks = Array.isArray(tasksValue)
           ? tasksValue.map(x => (typeof x === 'string' ? x.trim() : '')).filter((x): x is string => x.length > 0)
@@ -186,15 +188,7 @@ export function useGameState() {
   }, [state]);
 
   const switchView = useCallback((view: GameState['view']) => {
-    setState(prev => {
-      const next: GameState = { ...prev, view };
-      // When starting a game, pre-generate board task titles
-      // When starting a game, switch to game view
-      if (view === 'game') {
-        // No longer pre-generating board tasks titles as we use generic icons
-      }
-      return next;
-    });
+    setState(prev => ({ ...prev, view }));
   }, []);
 
   const updatePlayersConfig = useCallback((players: Omit<Player, 'step' | 'themeId'>[]) => {
