@@ -10,6 +10,7 @@ export interface Player {
   step: number; // Position in the pathCoords array (-1 means in base)
   themeId: string | null;
   isFinished: boolean;
+  taskIndex: number; // Tracks sequential index for drawn puzzle/task cards
 }
 
 export type ThemeAudience = 'common' | 'GENTLEMAN' | 'LADY' | 'KNIGHT';

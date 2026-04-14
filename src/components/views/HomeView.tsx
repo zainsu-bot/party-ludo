@@ -32,7 +32,8 @@ export function HomeView({ players, themes, onSelectTheme, onStartGame, onUpdate
           role: newCount === 4 ? 'LADY' : 'KNIGHT',
           step: -1,
           themeId: null,
-          isFinished: false
+          isFinished: false,
+          taskIndex: 0
         });
       } else {
         newPlayers.pop();

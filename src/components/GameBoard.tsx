@@ -1,13 +1,13 @@
 import { Player } from '../types';
 import {
-  GET_BOARD_MATRIX, getPlayerPath, SNAKE_COLS, SNAKE_ROWS
+  GET_BOARD_MATRIX, getPlayerPath, SNAKE_COLS, SNAKE_ROWS, OUTER_LOOP
 } from '../utils/gameLogic';
-import { Trophy } from 'lucide-react';
+import { Trophy, Gift, Zap } from 'lucide-react';
+import { LUCKY_STEPS } from '../hooks/useGameState';
 
 interface GameBoardProps {
   players: Player[];
   currentTurn: number;
-  boardTasks?: string[];
 }
 
 const TILE_THEME: Record<string, { glow: string; border: string; accent: string; bg: string; bgStrong: string }> = {
@@ -21,7 +21,7 @@ const TILE_THEME: Record<string, { glow: string; border: string; accent: string;
   public:  { glow: 'shadow-[0_0_35px_rgba(168,85,247,0.5)]', border: 'border-purple-400', accent: 'text-purple-50', bg: 'bg-indigo-900/60', bgStrong: 'bg-purple-500/30' },
 };
 
-export function GameBoard({ players, currentTurn, boardTasks }: GameBoardProps) {
+export function GameBoard({ players, currentTurn }: GameBoardProps) {
   
   const renderPlayers = (here: Player[]) => {
     if (here.length === 0) return null;
@@ -64,12 +64,17 @@ export function GameBoard({ players, currentTurn, boardTasks }: GameBoardProps) 
 
     const isActivePlayerHere = here.some(p => p.id === currentTurn);
 
+    // 获取当前格子在 48 步公共路径中的索引
+    const stepIndex = OUTER_LOOP.findIndex(c => c.r === row && c.c === col);
+    const isLuckyCenter = LUCKY_STEPS.includes(stepIndex);
+    const isLuckyZone = !isLuckyCenter && stepIndex !== -1 && LUCKY_STEPS.some(ls => Math.abs(ls - stepIndex) <= 1);
+
     // 1. 处理基地 (5, 6, 7, 8)
     const baseThemes: Record<string | number, { bg: string; border: string; shadow: string; glow: string; themeKey: string }> = {
       5:   { bg: 'bg-blue-600/50',  border: 'border-blue-400',  shadow: 'shadow-[0_0_40px_rgba(59,130,246,0.6)]', glow: 'from-blue-400/40', themeKey: 'blue' },
       6:   { bg: 'bg-rose-600/50',  border: 'border-rose-400',  shadow: 'shadow-[0_0_40px_rgba(244,63,94,0.6)]', glow: 'from-rose-400/40', themeKey: 'rose' },
       7:   { bg: 'bg-green-600/50', border: 'border-green-400', shadow: 'shadow-[0_0_40px_rgba(34,197,94,0.6)]', glow: 'from-green-400/40', themeKey: 'green' },
-      8:   { bg: 'bg-stone-600/50', border: 'border-stone-400', shadow: 'shadow-[0_0_40px_rgba(162,132,94,0.6)]', glow: 'from-stone-400/40', themeKey: 'amber' },
+      8:   { bg: 'bg-amber-600/55', border: 'border-amber-400', shadow: 'shadow-[0_0_40px_rgba(245,158,11,0.7)]', glow: 'from-amber-400/50', themeKey: 'amber' },
     };
 
     if (matrixValue !== null && baseThemes[matrixValue as any]) {
@@ -103,10 +108,24 @@ export function GameBoard({ players, currentTurn, boardTasks }: GameBoardProps) 
           `}
         >
           {renderPlayers(here)}
-          {boardTasks && boardTasks[row * SNAKE_COLS + col] && here.length === 0 && (
-            <span className="text-[10px] text-white/20 font-bold block scale-75 whitespace-nowrap overflow-hidden">
-              {boardTasks[row * SNAKE_COLS + col]}
-            </span>
+          {here.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              {isLuckyCenter ? (
+                <div className="relative">
+                  <div className="absolute inset-0 bg-amber-400 blur-md opacity-40 scale-150" />
+                  <Gift size={16} className="text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,1)]" />
+                </div>
+              ) : isLuckyZone ? (
+                <div className="relative">
+                   <div className="absolute inset-0 bg-amber-400/20 blur-sm scale-110" />
+                   <span className="text-amber-400 text-xs font-bold drop-shadow-[0_0_5px_rgba(251,191,36,0.6)]">★</span>
+                </div>
+              ) : (
+                <div className="opacity-20 group-hover:opacity-40 transition-opacity">
+                  <Zap size={14} className="text-white fill-current" />
+                </div>
+              )}
+            </div>
           )}
         </div>
       );
@@ -116,7 +135,7 @@ export function GameBoard({ players, currentTurn, boardTasks }: GameBoardProps) 
     if (matrixValue === 1) {
       return (
         <div key={`${row}-${col}`} className={`relative w-full h-full aspect-square rounded-md sm:rounded-lg flex items-center justify-center border-[2px] lg:border-[3px] ${TILE_THEME.goal.border} ${TILE_THEME.goal.glow} backdrop-blur-3xl bg-gradient-to-br from-amber-400 via-rose-500 to-amber-600 shadow-[0_0_80px_rgba(251,113,133,0.6)]`}>
-          <div className="absolute inset-0 bg-white/20 rounded-md sm:rounded-lg animate-pulse" />
+          <div className="absolute inset-0 bg-white/20 rounded-md sm:rounded-lg" />
           <Trophy size={20} className="text-white drop-shadow-[0_0_20px_rgba(251,191,36,1)] z-10 sm:scale-125" />
           {renderPlayers(here)}
         </div>

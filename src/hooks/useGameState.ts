@@ -1,15 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GameState, Player, TaskEventData, Theme, PartyRole } from '../types';
 import { loadFromStorage, saveToStorage } from '../utils/localStorage';
-import { generateBoardMap, SNAKE_PATH, PATHS_BY_ROLE, getPlayerPath } from '../utils/gameLogic';
+import { generateBoardMap, SNAKE_PATH, PATHS_BY_ROLE, getPlayerPath, OUTER_LOOP } from '../utils/gameLogic';
 import { DEFAULT_THEMES } from '../data/defaultThemes';
 
 const STORAGE_KEY = 'party-ludo-game-state';
 
 export const initialPlayers: Player[] = [
-  { id: 0, name: '绅士', color: '#0A84FF', role: 'GENTLEMAN', step: 0, themeId: null, isFinished: false },
-  { id: 1, name: '淑女', color: '#FF375F', role: 'LADY', step: 0, themeId: null, isFinished: false }
+  { id: 0, name: '绅士', color: '#0A84FF', role: 'GENTLEMAN', step: 0, themeId: null, isFinished: false, taskIndex: 0 },
+  { id: 1, name: '淑女', color: '#FF375F', role: 'LADY', step: 0, themeId: null, isFinished: false, taskIndex: 0 }
 ];
+
+// 定义“幸运格”的步数索引（基于 48 步的公共路径，保持稀有感）
+export const LUCKY_STEPS = [7, 16, 25, 34, 43];
+
+// 新增：任务格图标配置 (Lucide-React 组件名)
+export const TASK_ICON = 'Zap';
+
+/**
+ * 任务梯度分池大小：控制游戏难度进度的颗粒度
+ * 统一设置为 4，意味着每完成 4 个任务，游戏的任务广度就会向高一阶的难度池推进。
+ */
+export const BUCKET_SIZE = 4;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -17,6 +29,38 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isThemeAllowedForRole(theme: Theme, role: Player['role']) {
   return theme.audience === 'common' || theme.audience === role;
+}
+
+/**
+ * 分段洗牌算法：保证整体难度梯度的同时，增加局部随机惊喜
+ * 默认每 8 张卡为一个“战区”，在战区内进行随机排序
+ */
+function getBucketShuffledIndex(realIndex: number, totalTasks: number, playerId: number): number {
+  const bucketNo = Math.floor(realIndex / BUCKET_SIZE);
+  const posInBucket = realIndex % BUCKET_SIZE;
+
+  // 生成该战区的原始索引序列
+  const bucketStart = bucketNo * BUCKET_SIZE;
+  const indices: number[] = [];
+  for (let i = 0; i < BUCKET_SIZE; i++) {
+    const idx = bucketStart + i;
+    if (idx < totalTasks) {
+      indices.push(idx);
+    }
+  }
+
+  if (indices.length <= 1) return realIndex;
+
+  // 使用基于随机种子（桶编号 + 玩家ID）的确定性洗牌
+  // 这样保证同一个玩家在同一局中看到的顺序是稳定的，但不同局不同
+  let seed = bucketNo * 59 + playerId + 13;
+  for (let i = indices.length - 1; i > 0; i--) {
+    seed = (seed * 9301 + 49297) % 233280;
+    const j = seed % (i + 1);
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+
+  return indices[posInBucket] ?? (realIndex % totalTasks);
 }
 
 function normalizePlayers(input: unknown): Player[] {
@@ -43,7 +87,8 @@ function normalizePlayers(input: unknown): Player[] {
       role: ['GENTLEMAN', 'LADY', 'KNIGHT'].includes(roleValue) ? roleValue : (roleValue === ('ELF' as any) ? 'LADY' : 'GENTLEMAN'),
       step: typeof record.step === 'number' ? Math.max(0, record.step) : 0,
       themeId: typeof themeIdValue === 'string' || themeIdValue === null ? themeIdValue : null,
-      isFinished: !!record.isFinished
+      isFinished: !!record.isFinished,
+      taskIndex: typeof (record as any).taskIndex === 'number' ? (record as any).taskIndex : 0
     };
   });
 }
@@ -56,6 +101,11 @@ function normalizeThemes(input: unknown): Theme[] {
   DEFAULT_THEMES.forEach(t => themesMap.set(t.id, t));
 
   // 2. 合并来自存储的主题 (主要是保留用户自定义的主题)
+  const deprecatedIds = [
+    'wild', 'cyber_speed',
+    'wild_husband', 'wild_wife', 'wild_bull',
+    'cyber_speed_husband', 'cyber_speed_wife', 'cyber_speed_bull'
+  ];
   incoming.forEach(t => {
     if (isRecord(t) && typeof t.id === 'string') {
       const id = t.id;
@@ -135,29 +185,13 @@ export function useGameState() {
     saveToStorage(STORAGE_KEY, state);
   }, [state]);
 
-  const extractShortTitle = (task: string): string => {
-    // Take first 4 characters or before first punctuation
-    const simple = task.replace(/[，。！？、]/g, '|').split('|')[0];
-    return simple.slice(0, 4);
-  };
-
   const switchView = useCallback((view: GameState['view']) => {
     setState(prev => {
       const next: GameState = { ...prev, view };
       // When starting a game, pre-generate board task titles
+      // When starting a game, switch to game view
       if (view === 'game') {
-        const pool: string[] = [];
-        prev.players.forEach(p => {
-          const theme = prev.themes.find(t => t.id === p.themeId);
-          if (theme) pool.push(...theme.tasks);
-        });
-
-        if (pool.length > 0) {
-          next.boardTasks = Array.from({ length: 169 }, () => {
-            const task = pool[Math.floor(Math.random() * pool.length)];
-            return extractShortTitle(task);
-          });
-        }
+        // No longer pre-generating board tasks titles as we use generic icons
       }
       return next;
     });
@@ -176,7 +210,8 @@ export function useGameState() {
         return {
           ...p,
           step: 0,
-          themeId: validTheme
+          themeId: validTheme,
+          taskIndex: 0
         };
       })
     }));
@@ -224,7 +259,17 @@ export function useGameState() {
       const theme = state.themes.find(t => t.id === player.themeId);
       if (!theme || !isThemeAllowedForRole(theme, player.role) || theme.tasks.length === 0) return false;
     }
-    setState(prev => ({ ...prev, view: 'game', turn: Math.floor(Math.random() * prev.players.length) }));
+
+    setState(prev => {
+      const next: GameState = {
+        ...prev,
+        view: 'game',
+        turn: Math.floor(Math.random() * prev.players.length)
+      };
+
+      return next;
+    });
+
     return true;
   }, [state.players, state.themes]);
 
@@ -282,9 +327,49 @@ export function useGameState() {
     });
 
     const theme = state.themes.find(t => t.id === activePlayer.themeId);
-    const task = theme?.tasks.length
-      ? theme.tasks[Math.floor(Math.random() * theme.tasks.length)]
-      : '完成一个挑战！';
+    let task = '完成一个挑战！';
+    if (theme && theme.tasks.length > 0) {
+      // 核心修复：通过物理坐标计算全局索引，确保所有颜色的玩家坐标一致
+      const currentCoord = path[finalStep];
+      const globalIdx = OUTER_LOOP.findIndex(c => c.r === currentCoord.r && c.c === currentCoord.c);
+
+      // 检查是否在全局幸运格及其磁吸范围内
+      const isLucky = globalIdx !== -1 && LUCKY_STEPS.some(luckyStep => {
+        // 在 48 步循环路径中，计算环形距离
+        const dist = Math.abs(luckyStep - globalIdx);
+        // 考虑环路循环（48步首尾相接）
+        return dist <= 1 || dist === OUTER_LOOP.length - 1;
+      });
+
+      let finalTaskIdx = getBucketShuffledIndex(activePlayer.taskIndex, theme.tasks.length, activePlayer.id);
+
+      if (isLucky) {
+        // 如果是幸运格，在此档位 (Bucket) 内“精准插队”找出一张奖励卡
+        const bucketNo = Math.floor(activePlayer.taskIndex / BUCKET_SIZE);
+        const bucketStart = bucketNo * BUCKET_SIZE;
+
+        // 搜索当前档位内是否存在奖励或特权卡 (增加识别词：奖赏、特权、豁免)
+        let rewardIdx = theme.tasks.findIndex((t, idx) =>
+          idx >= bucketStart &&
+          idx < bucketStart + BUCKET_SIZE &&
+          (t.includes('[★') || t.includes('奖励') || t.includes('奖赏') || t.includes('特权') || t.includes('豁免'))
+        );
+
+        // 【终极保底】：如果当前档位没奖励了，就向后跨组搜索整张卡包
+        if (rewardIdx === -1) {
+          rewardIdx = theme.tasks.findIndex((t, idx) =>
+            idx >= activePlayer.taskIndex &&
+            (t.includes('[★') || t.includes('奖励') || t.includes('奖赏') || t.includes('特权') || t.includes('豁免'))
+          );
+        }
+
+        if (rewardIdx !== -1) {
+          finalTaskIdx = rewardIdx;
+        }
+      }
+
+      task = theme.tasks[finalTaskIdx % theme.tasks.length];
+    }
 
     if (opponent) {
       return { type: 'collision', initiatorPlayerId: activePlayer.id, executorPlayerId: opponent.id, title: '不期而遇', subtitle: `任务来自「${theme?.name || ''}」`, icon: 'handshake', color: 'text-yellow-400', task, taskSourceId: activePlayer.themeId || '' };
@@ -296,10 +381,12 @@ export function useGameState() {
 
   const resolveTask = useCallback((task: TaskEventData, outcome: 'accept' | 'reject') => {
     setState(prev => {
-      let nextPlayers = prev.players;
+      let nextPlayers = prev.players.map(p =>
+        p.id === task.initiatorPlayerId ? { ...p, taskIndex: p.taskIndex + 1 } : p
+      );
       if (outcome === 'reject') {
         const backSteps = Math.floor(Math.random() * 3) + 1;
-        nextPlayers = prev.players.map(p => p.id === task.executorPlayerId ? { ...p, step: task.type === 'collision' ? 0 : Math.max(0, p.step - backSteps) } : p);
+        nextPlayers = nextPlayers.map(p => p.id === task.executorPlayerId ? { ...p, step: task.type === 'collision' ? 0 : Math.max(0, p.step - backSteps) } : p);
       }
       return { ...prev, players: nextPlayers, turn: (prev.turn + 1) % prev.players.length, isRolling: false };
     });
@@ -308,7 +395,7 @@ export function useGameState() {
   const resetGame = useCallback(() => {
     setState(prev => ({
       ...prev, view: 'home', turn: 0,
-      players: prev.players.map(p => ({ ...p, themeId: null, step: 0 })),
+      players: prev.players.map(p => ({ ...p, themeId: null, step: 0, taskIndex: 0 })),
       boardMap: generateBoardMap(), pathCoords: [], isRolling: false
     }));
   }, []);
