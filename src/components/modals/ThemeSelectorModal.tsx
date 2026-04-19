@@ -58,7 +58,7 @@ export function ThemeSelectorModal({
                 <span className={`text-base font-bold tracking-wide transition-colors ${selectedThemeId === theme.id ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>
                   {theme.name}
                 </span>
-                <span className="text-[10px] text-white/30 uppercase tracking-widest mt-0.5">Selection Theme Pack</span>
+                <span className="text-[10px] text-white/30 uppercase tracking-widest mt-0.5">精选主题包</span>
               </div>
               {selectedThemeId === theme.id && (
                 <div className="bg-white rounded-full p-1 shadow-lg">

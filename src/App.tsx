@@ -119,7 +119,6 @@ function App() {
         <header className="pt-4 pb-2 px-6 shrink-0 flex justify-between items-start">
           <div>
             <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">
-              Party Game
             </div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-rose-100 tracking-tight drop-shadow-sm shrink-0">派对飞行棋</h1>
@@ -144,7 +143,7 @@ function App() {
               href="https://github.com/zainsu-bot/party-ludo"
               className="text-[10px] text-gray-500 hover:text-gray-300 transition-colors whitespace-nowrap"
             >
-              问题反馈：GitHub Project
+              问题反馈：GitHub 项目
             </a>
           </div>
         </header>

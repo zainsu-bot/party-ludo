@@ -102,7 +102,7 @@ export function HomeView({ players, themes, onSelectTheme, onStartGame, onUpdate
                     className="flex-shrink-0 flex flex-col justify-center items-end pl-3 border-l border-white/10 cursor-pointer hover:bg-white/5 transition-all p-1.5 rounded-xl active:scale-95"
                     onClick={() => onSelectTheme(player.id)}
                   >
-                    <div className="text-[10px] text-white/50 font-bold uppercase tracking-tighter">任务包 THEME</div>
+                    <div className="text-[10px] text-white/50 font-bold uppercase tracking-tighter">任务包主题</div>
                     <div className={`text-[11px] font-black mt-1 px-2 py-0.5 rounded-md flex items-center gap-1 ${theme ? 'bg-teal-500/20 text-teal-300' : 'bg-white/5 text-rose-300 animate-pulse border border-rose-300/30'}`}>
                       {theme?.name || '未选择 >'}
                     </div>

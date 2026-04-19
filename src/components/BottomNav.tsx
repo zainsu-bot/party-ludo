@@ -21,7 +21,7 @@ export function BottomNav({ activeView, onNavigate }: BottomNavProps) {
           <Gamepad2 size={24} />
           {activeView === 'game' && <div className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full animate-ping" />}
         </div>
-        <span className="text-[10px] font-black uppercase tracking-widest">Party</span>
+        <span className="text-[10px] font-black uppercase tracking-widest">游戏</span>
       </button>
 
       <button 
@@ -33,7 +33,7 @@ export function BottomNav({ activeView, onNavigate }: BottomNavProps) {
         }`}
       >
         <Layout size={24} />
-        <span className="text-[10px] font-black uppercase tracking-widest">Themes</span>
+        <span className="text-[10px] font-black uppercase tracking-widest">题库</span>
       </button>
     </nav>
   );
