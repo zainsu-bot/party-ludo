@@ -8,9 +8,10 @@ export interface Player {
   color: string;
   role: PartyRole;
   step: number; // Position in the pathCoords array (-1 means in base)
-  themeId: string | null;
+  themeIds: string[];
   isFinished: boolean;
   taskIndex: number; // Tracks sequential index for drawn puzzle/task cards
+  sessionPool?: string[]; // Generated mixed tasks for the current game
 }
 
 export type ThemeAudience = 'common' | 'GENTLEMAN' | 'LADY' | 'KNIGHT';

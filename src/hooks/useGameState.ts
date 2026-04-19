@@ -14,8 +14,8 @@ const DEPRECATED_THEME_IDS: readonly string[] = [
 ];
 
 export const initialPlayers: Player[] = [
-  { id: 0, name: '绅士', color: '#0A84FF', role: 'GENTLEMAN', step: 0, themeId: null, isFinished: false, taskIndex: 0 },
-  { id: 1, name: '淑女', color: '#FF375F', role: 'LADY', step: 0, themeId: null, isFinished: false, taskIndex: 0 }
+  { id: 0, name: '绅士', color: '#0A84FF', role: 'GENTLEMAN', step: 0, themeIds: [], isFinished: false, taskIndex: 0 },
+  { id: 1, name: '淑女', color: '#FF375F', role: 'LADY', step: 0, themeIds: [], isFinished: false, taskIndex: 0 }
 ];
 
 // 定义“幸运格”的步数索引（基于 48 步的公共路径，保持稀有感）
@@ -77,7 +77,16 @@ function normalizePlayers(input: unknown): Player[] {
   return incoming.map((p, index) => {
     const record = isRecord(p) ? p : {};
     const roleValue = record.role as PartyRole;
-    const themeIdValue = record.themeId;
+    
+    // Migration: themeId (string) -> themeIds (string[])
+    const oldThemeId = record.themeId;
+    let themeIds: string[] = [];
+    if (Array.isArray(record.themeIds)) {
+      themeIds = record.themeIds.filter(id => typeof id === 'string');
+    } else if (typeof oldThemeId === 'string') {
+      themeIds = [oldThemeId];
+    }
+
     const defaultNames: Record<string, string> = { GENTLEMAN: '绅士', LADY: '淑女', KNIGHT: '骑士' };
 
     let name: string = typeof record.name === 'string' ? record.name : (defaultNames[roleValue as string] || `玩家${index + 1}`);
@@ -93,7 +102,8 @@ function normalizePlayers(input: unknown): Player[] {
       color: typeof record.color === 'string' ? record.color : '#FFFFFF',
       role: ['GENTLEMAN', 'LADY', 'KNIGHT'].includes(roleValue) ? roleValue : (roleValue === ('ELF' as PartyRole) ? 'LADY' : 'GENTLEMAN'),
       step: typeof record.step === 'number' ? Math.max(0, record.step) : 0,
-      themeId: typeof themeIdValue === 'string' || themeIdValue === null ? themeIdValue : null,
+      themeIds,
+      sessionPool: Array.isArray(record.sessionPool) ? record.sessionPool.filter(t => typeof t === 'string') : undefined,
       isFinished: !!record.isFinished,
       taskIndex: typeof record['taskIndex'] === 'number' ? (record['taskIndex'] as number) : 0
     };
@@ -140,10 +150,11 @@ function normalizeGameState(saved: unknown): GameState | null {
 
   const themes = normalizeThemes(s.themes);
   const players = normalizePlayers(s.players).map(p => {
-    if (p.themeId === null) return p;
-    const theme = themes.find(t => t.id === p.themeId);
-    if (!theme || !isThemeAllowedForRole(theme, p.role)) return { ...p, themeId: null };
-    return p;
+    const validThemeIds = p.themeIds.filter(id => {
+      const theme = themes.find(t => t.id === id);
+      return theme && isThemeAllowedForRole(theme, p.role);
+    });
+    return { ...p, themeIds: validThemeIds };
   });
 
   return {
@@ -191,28 +202,45 @@ export function useGameState() {
     setState(prev => ({ ...prev, view }));
   }, []);
 
-  const updatePlayersConfig = useCallback((players: Omit<Player, 'step' | 'themeId'>[]) => {
+  const updatePlayersConfig = useCallback((players: Omit<Player, 'step' | 'themeIds' | 'sessionPool'>[]) => {
     setState(prev => ({
       ...prev,
       players: players.map((p) => {
         const existing = prev.players.find(oldP => oldP.id === p.id);
-        const playerTheme = existing?.themeId;
-        // Verify if theme is still compatible with new role
-        const themeDef = playerTheme ? prev.themes.find(t => t.id === playerTheme) : null;
-        const validTheme = themeDef && isThemeAllowedForRole(themeDef, p.role) ? (playerTheme ?? null) : null;
+        const playerThemeIds = existing?.themeIds || [];
+        
+        // Verify compatibility for all themes
+        const validThemeIds = playerThemeIds.filter(id => {
+          const themeDef = prev.themes.find(t => t.id === id);
+          return themeDef && isThemeAllowedForRole(themeDef, p.role);
+        });
 
         return {
           ...p,
           step: 0,
-          themeId: validTheme,
+          themeIds: validThemeIds,
           taskIndex: 0
         };
       })
     }));
   }, []);
 
-  const selectTheme = useCallback((playerId: number, themeId: string) => {
-    setState(prev => ({ ...prev, players: prev.players.map(p => p.id === playerId ? { ...p, themeId } : p) }));
+  const toggleTheme = useCallback((playerId: number, themeId: string) => {
+    setState(prev => ({
+      ...prev,
+      players: prev.players.map(p => {
+        if (p.id !== playerId) return p;
+        const isSelected = p.themeIds.includes(themeId);
+        
+        // 强制限制：如果已经选了 2 个且当前点击的是新主题，则不允许添加
+        if (p.themeIds.length >= 2 && !isSelected) return p;
+
+        const themeIds = isSelected
+          ? p.themeIds.filter(id => id !== themeId)
+          : [...p.themeIds, themeId];
+        return { ...p, themeIds };
+      })
+    }));
   }, []);
 
   const createTheme = useCallback((input: { name: string; desc?: string; audience: Theme['audience'] }) => {
@@ -249,19 +277,45 @@ export function useGameState() {
 
   const startGame = useCallback(() => {
     for (const player of state.players) {
-      if (!player.themeId) return false;
-      const theme = state.themes.find(t => t.id === player.themeId);
-      if (!theme || !isThemeAllowedForRole(theme, player.role) || theme.tasks.length === 0) return false;
+      if (player.themeIds.length !== 2) return false;
+      for (const id of player.themeIds) {
+        const theme = state.themes.find(t => t.id === id);
+        if (!theme || !isThemeAllowedForRole(theme, player.role) || theme.tasks.length === 0) return false;
+      }
     }
 
     setState(prev => {
-      const next: GameState = {
+      const nextPlayers = prev.players.map(player => {
+        // 【核心混编逻辑强化】：先按主题包在 registry 中的原始顺序排序，确保“低尺度包”始终在“高尺度包”之前
+        const sortedIds = [...player.themeIds].sort((a, b) => {
+          const idxA = prev.themes.findIndex(t => t.id === a);
+          const idxB = prev.themes.findIndex(t => t.id === b);
+          return idxA - idxB;
+        });
+
+        let sessionPool: string[] = [];
+        sortedIds.forEach(themeId => {
+          const theme = prev.themes.find(t => t.id === themeId);
+          if (theme) {
+            // 【优化】：仅识别 [★] 作为奖励标识，将其从普通任务池中过滤掉
+            const normalTasks = theme.tasks.filter(t => !t.includes('[★'));
+
+            const numToPick = Math.min(10, normalTasks.length);
+            const picked = normalTasks.sort(() => 0.5 - Math.random()).slice(0, numToPick);
+            const sorted = picked.sort((a, b) => theme.tasks.indexOf(a) - theme.tasks.indexOf(b));
+            sessionPool = [...sessionPool, ...sorted];
+          }
+        });
+
+        return { ...player, sessionPool };
+      });
+
+      return {
         ...prev,
+        players: nextPlayers,
         view: 'game',
         turn: Math.floor(Math.random() * prev.players.length)
       };
-
-      return next;
     });
 
     return true;
@@ -320,57 +374,69 @@ export function useGameState() {
       return oppCoord && oppCoord.r === currentCoord.r && oppCoord.c === currentCoord.c;
     });
 
-    const theme = state.themes.find(t => t.id === activePlayer.themeId);
+    const themeIds = activePlayer.themeIds;
+    const pool = activePlayer.sessionPool || [];
     let task = '完成一个挑战！';
-    if (theme && theme.tasks.length > 0) {
+
+    if (pool.length > 0) {
       // 核心修复：通过物理坐标计算全局索引，确保所有颜色的玩家坐标一致
       const currentCoord = path[finalStep];
       const globalIdx = OUTER_LOOP.findIndex(c => c.r === currentCoord.r && c.c === currentCoord.c);
 
       // 检查是否在全局幸运格及其磁吸范围内
       const isLucky = globalIdx !== -1 && LUCKY_STEPS.some(luckyStep => {
-        // 在 48 步循环路径中，计算环形距离
         const dist = Math.abs(luckyStep - globalIdx);
-        // 考虑环路循环（48步首尾相接）
         return dist <= 1 || dist === OUTER_LOOP.length - 1;
       });
 
-      let finalTaskIdx = getBucketShuffledIndex(activePlayer.taskIndex, theme.tasks.length, activePlayer.id);
+      // 计算物理进度比例 (0.0 - 1.0)
+      const progress = finalStep / (pathLen - 1);
+      // 将物理进度映射到池索引
+      const baseIdx = Math.floor(progress * pool.length);
+      
+      let finalTaskIdx = getBucketShuffledIndex(baseIdx, pool.length, activePlayer.id);
 
       if (isLucky) {
-        // 如果是幸运格，在此档位 (Bucket) 内“精准插队”找出一张奖励卡
-        const bucketNo = Math.floor(activePlayer.taskIndex / BUCKET_SIZE);
-        const bucketStart = bucketNo * BUCKET_SIZE;
-
-        // 搜索当前档位内是否存在奖励或特权卡 (增加识别词：奖赏、特权、豁免)
-        let rewardIdx = theme.tasks.findIndex((t, idx) =>
-          idx >= bucketStart &&
-          idx < bucketStart + BUCKET_SIZE &&
-          (t.includes('[★') || t.includes('奖励') || t.includes('奖赏') || t.includes('特权') || t.includes('豁免'))
-        );
-
-        // 【终极保底】：如果当前档位没奖励了，就向后跨组搜索整张卡包
-        if (rewardIdx === -1) {
-          rewardIdx = theme.tasks.findIndex((t, idx) =>
-            idx >= activePlayer.taskIndex &&
-            (t.includes('[★') || t.includes('奖励') || t.includes('奖赏') || t.includes('特权') || t.includes('豁免'))
-          );
+        // 【核心重构】：踩到幸运格时，直接从玩家所选主题的“原始词库”中精准搜索奖励卡
+        let rewardTask: string | null = null;
+        
+        // 尝试从第1个或第2个选中主题中寻找奖励卡
+        for (const tid of activePlayer.themeIds) {
+          const theme = state.themes.find(t => t.id === tid);
+          if (theme) {
+            const rewards = theme.tasks.filter(t => t.includes('[★'));
+            if (rewards.length > 0) {
+              // 随机挑一个奖励（或者可以根据进度深度挑，此处保持简单随机）
+              rewardTask = rewards[Math.floor(Math.random() * rewards.length)];
+              break;
+            }
+          }
         }
-
-        if (rewardIdx !== -1) {
-          finalTaskIdx = rewardIdx;
+        
+        if (rewardTask) {
+          task = rewardTask;
+          // 注意：此处不再修改 finalTaskIdx，直接覆盖结果
         }
+      } else {
+        // 普通格逻辑：按物理进度从净化后的 pool 中取任务
+        task = pool[finalTaskIdx % pool.length];
       }
-
-      task = theme.tasks[finalTaskIdx % theme.tasks.length];
+    } else {
+      // Fallback to legacy single theme (should not happen in new version)
+      const theme = state.themes.find(t => t.id === themeIds[0]);
+      if (theme && theme.tasks.length > 0) {
+        let idx = getBucketShuffledIndex(activePlayer.taskIndex, theme.tasks.length, activePlayer.id);
+        task = theme.tasks[idx % theme.tasks.length];
+      }
     }
 
     if (opponent) {
-      return { type: 'collision', initiatorPlayerId: activePlayer.id, executorPlayerId: opponent.id, title: '不期而遇', subtitle: `任务来自「${theme?.name || ''}」`, icon: 'handshake', color: 'text-yellow-400', task, taskSourceId: activePlayer.themeId || '' };
+      const sourceName = pool.length > 0 ? "混合包" : (state.themes.find(t => t.id === themeIds[0])?.name || '');
+      return { type: 'collision', initiatorPlayerId: activePlayer.id, executorPlayerId: opponent.id, title: '不期而遇', subtitle: `任务来自「${sourceName}」`, icon: 'handshake', color: 'text-yellow-400', task, taskSourceId: themeIds[0] || '' };
     }
 
-    // 普通格：触发任务卡
-    return { type: 'lucky', initiatorPlayerId: activePlayer.id, executorPlayerId: activePlayer.id, title: '任务卡', subtitle: `来自「${theme?.name || '未知主题'}」`, icon: 'star', color: 'text-blue-400', task, taskSourceId: activePlayer.themeId || '' };
+    const sourceName = pool.length > 0 ? "混合包" : (state.themes.find(t => t.id === themeIds[0])?.name || '');
+    return { type: 'lucky', initiatorPlayerId: activePlayer.id, executorPlayerId: activePlayer.id, title: '任务卡', subtitle: `来自「${sourceName}」`, icon: 'star', color: 'text-blue-400', task, taskSourceId: themeIds[0] || '' };
   }, [state.players, state.turn, state.themes]);
 
   const resolveTask = useCallback((task: TaskEventData, outcome: 'accept' | 'reject') => {
@@ -389,10 +455,10 @@ export function useGameState() {
   const resetGame = useCallback(() => {
     setState(prev => ({
       ...prev, view: 'home', turn: 0,
-      players: prev.players.map(p => ({ ...p, themeId: null, step: 0, taskIndex: 0 })),
+      players: prev.players.map(p => ({ ...p, themeIds: [], sessionPool: undefined, step: 0, taskIndex: 0 })),
       boardMap: generateBoardMap(), pathCoords: [], isRolling: false
     }));
   }, []);
 
-  return { state, switchView, updatePlayersConfig, selectTheme, createTheme, updateThemeMeta, addThemeTask, removeThemeTask, startGame, movePlayer, endTurn, setIsRolling, checkTile, resolveTask, resetGame };
+  return { state, switchView, updatePlayersConfig, toggleTheme, createTheme, updateThemeMeta, addThemeTask, removeThemeTask, startGame, movePlayer, endTurn, setIsRolling, checkTile, resolveTask, resetGame };
 }

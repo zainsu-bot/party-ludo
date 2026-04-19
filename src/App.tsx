@@ -16,7 +16,6 @@ function App() {
   const {
     state,
     switchView,
-    selectTheme,
     createTheme,
     updateThemeMeta,
     addThemeTask,
@@ -28,7 +27,8 @@ function App() {
     setIsRolling,
     checkTile,
     resolveTask,
-    resetGame
+    resetGame,
+    toggleTheme
   } = useGameState();
 
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
@@ -50,7 +50,7 @@ function App() {
   };
 
   const handleThemeSelect = (themeId: string) => {
-    selectTheme(selectedPlayerId, themeId);
+    toggleTheme(selectedPlayerId, themeId);
   };
 
   const selectedPlayer = state.players.find(p => p.id === selectedPlayerId) || state.players[0];
@@ -129,21 +129,15 @@ function App() {
               />
             </div>
           </div>
-          <div className="flex flex-col items-end gap-1 mt-1 shrink-0">
+          <div className="mt-1 shrink-0">
             <a
               href="https://github.com/zainsu-bot/party-ludo"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-400 hover:text-white transition-colors"
-              title="GitHub Repository"
+              className="flex items-center gap-3 text-rose-100 hover:text-white transition-colors group"
             >
-              <Github size={24} />
-            </a>
-            <a
-              href="https://github.com/zainsu-bot/party-ludo"
-              className="text-[10px] text-gray-500 hover:text-gray-300 transition-colors whitespace-nowrap"
-            >
-              问题反馈：GitHub 项目
+              <span className="text-2xl font-bold tracking-tight opacity-90 group-hover:opacity-100 transition-opacity">问题反馈</span>
+              <Github size={30} className="opacity-90 group-hover:opacity-100 transition-opacity" />
             </a>
           </div>
         </header>
@@ -184,7 +178,7 @@ function App() {
       <ThemeSelectorModal
         isOpen={isThemeModalOpen}
         themes={selectableThemes}
-        selectedThemeId={selectedPlayer?.themeId || null}
+        selectedThemeIds={selectedPlayer?.themeIds || []}
         onSelect={handleThemeSelect}
         onClose={() => setIsThemeModalOpen(false)}
       />
